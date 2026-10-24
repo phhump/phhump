@@ -1,0 +1,12 @@
+Anschreiben für Philipp Humpert (Stand 24.10.2026)
+- Anschreiben/      : 26 Anschreiben als Word-Dateien (bearbeitbar)
+- Anschreiben_PDF/  : dieselben Anschreiben als PDF
+- Uebersicht_Bewerbungen.xlsx : Firma, Stelle, Link, Frist, Anschreiben ja/nein
+
+Wichtig:
+- Alle Stellen stammen aus tatsächlich gefundenen Anzeigen (StepStone, Umkreis 100 km um Ense).
+- Vor dem Absenden jede Anzeige noch einmal öffnen: Viele laufen in den nächsten Tagen ab.
+- Firmenadressen sind nur Firmenname + Ort (Straße unbekannt) - bitte ergänzen, falls per Post/E-Mail.
+- Die Stelle bei thyssenkrupp rothe erde (Lippstadt) ist nicht dabei, dafür liegt schon dein Anschreiben vor.
+- Aussagen in den Anschreiben stützen sich nur auf deinen Lebenslauf. Bitte lies jedes Anschreiben
+  durch und streiche, was nicht stimmt (z. B. Formulierungen zur Einarbeitung in Themen).
