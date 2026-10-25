@@ -1,6 +1,6 @@
 Bewerbungen Philipp Humpert (Stand 25.10.2026)
 
-Inhalt der ZIP-Dateien (je Entfernungsstufe ab Ense, Luftlinie):
+Inhalt der ZIP-Dateien (je Entfernungsstufe ab Ense, Luftlinie; 00b = direkt auf Firmenwebseiten gefundene Stellen):
   01_T1_Region_bis_90km        Region (bis 90 km) - zuerst bewerben
   02_T2_90_bis_200km
   03_T3_200_bis_400km
