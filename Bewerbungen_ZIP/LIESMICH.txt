@@ -1,0 +1,18 @@
+Bewerbungen Philipp Humpert (Stand 25.10.2026)
+
+Inhalt der ZIP-Dateien (je Entfernungsstufe ab Ense, Luftlinie):
+  01_T1_Region_bis_90km        Region (bis 90 km) - zuerst bewerben
+  02_T2_90_bis_200km
+  03_T3_200_bis_400km
+  04_T4_ueber_400km_und_unbekannt   (>400 km, bundesweit/Ort unbekannt)
+  00_Uebersicht_Alle_Stellen.xlsx   Firma, Stelle, Link, Frist, Passung, Anschreiben ja/nein, Dateiname + Liste aussortierter Stellen
+
+In jedem Ordner: Anschreiben_Word (bearbeitbar) und Anschreiben_PDF.
+
+Wichtig:
+- 26 Anschreiben sind einzeln geschrieben, alle anderen automatisch an Stelle, Fachbereich und genannte Tools angepasst
+  (Spalte "Erstellt"). Bitte jedes Anschreiben vor dem Versand lesen.
+- Aussagen stützen sich nur auf den Lebenslauf; fehlende Erfahrung steht als Einarbeitungsbereitschaft drin.
+- Fristen ("Anzeige gültig bis") beachten, viele laufen in den nächsten Tagen ab.
+- Firmenadresse = nur Firmenname und Ort; Straße bei Bedarf ergänzen.
+- Spalte "Passung": hoch = Titel passt klar zu deinem Profil, mittel = eher allgemein/technisch-nah, bitte kurz prüfen.
