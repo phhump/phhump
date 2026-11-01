@@ -27,6 +27,9 @@ namespace StellarIndustries.Core.Save
             if (s.UnlockedLocations == null) s.UnlockedLocations = new List<string>();
             if (s.MissionCompletions == null) s.MissionCompletions = new Dictionary<string, int>();
             if (s.Features == null) s.Features = new List<string>();
+            if (s.RocketFlights == null) s.RocketFlights = new Dictionary<string, int>();
+            foreach (var key in s.RocketFlights.Keys.ToList()) if (db.Rocket(key) == null || s.RocketFlights[key] < 0) s.RocketFlights.Remove(key);
+            if (double.IsNaN(s.GameTime) || s.GameTime < 0) s.GameTime = 0;
             if (s.Achievements == null) s.Achievements = new List<string>();
             if (s.Stats == null) s.Stats = new Statistics();
             if (s.Stats.Produced == null) s.Stats.Produced = new Dictionary<string, double>();

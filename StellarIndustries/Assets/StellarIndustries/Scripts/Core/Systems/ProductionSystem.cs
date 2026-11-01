@@ -64,7 +64,7 @@ namespace StellarIndustries.Core.Systems
         {
             switch (def.PowerSource)
             {
-                case PowerSource.Solar: return loc.SolarMultiplier;
+                case PowerSource.Solar: return SpacePhysics.SolarFactor(loc);
                 case PowerSource.Wind: return loc.HasWind ? 1 : 0;
                 default: return 1;
             }
@@ -120,6 +120,8 @@ namespace StellarIndustries.Core.Systems
                     richness = dep.Richness;
                     mult = extrMult;
                 }
+                if (!string.IsNullOrEmpty(recipe.RequiredAtmosphere) && !(locDef.Atmosphere ?? "").Contains(recipe.RequiredAtmosphere))
+                { b.Status = BuildingStatus.NoDeposit; b.EffectiveSpeed = 0; continue; }
                 if (def.Category == BuildingCategory.Research) mult = prodMult * resMult;
 
                 double power = def.PowerUse > 0 ? satisfaction : 1;

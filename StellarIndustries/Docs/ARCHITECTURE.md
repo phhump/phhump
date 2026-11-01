@@ -9,7 +9,7 @@
 | `StellarIndustries.Tests` | `Tests` | Core, NUnit | Shared test suite + Unity Test Runner wrapper. |
 
 The hard rule: **gameplay logic lives only in Core**. The Unity layer reads state, listens to events and
-calls system APIs. This keeps the simulation testable (19 headless tests incl. a full playthrough bot)
+calls system APIs. This keeps the simulation testable (25 headless tests incl. a full playthrough bot)
 and lets the UI be replaced (e.g. by UI Toolkit) without touching gameplay.
 
 ## Core layout
@@ -19,7 +19,8 @@ Core/
                GameDatabase (indexed lookup + Validate()), DefaultContent (built-in content)
   State/       GameState and its parts — ids and numbers only, serializable
   Systems/     GameEvents, ModifierSystem, InventorySystem, ProductionSystem (incl. energy),
-               ConstructionSystem, ResearchSystem, MissionSystem, LogisticsSystem, AchievementSystem
+               ConstructionSystem, ResearchSystem, MissionSystem, LogisticsSystem, AchievementSystem,
+               SpacePhysics (rocket equation, launch windows, solar factor, heritage)
   Simulation/  GameSimulation (facade, wiring, Tick/Step), OfflineProgression
   Save/        SaveSerializer (format/version/checksum/migrations), SaveSanitizer (repair), SaveManager (+ storages)
   Util/        Json, JsonMapper (reflection), Rng (xorshift, state saved), NumberFormat

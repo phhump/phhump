@@ -15,6 +15,9 @@ namespace StellarIndustries.Unity.UI.Panels
         {
             GUILayout.BeginArea(r);
             Heading("Spacecraft", "Rockets are assembled from components in a Rocket Assembly Building, then launched from the Missions screen.");
+            GUILayout.Label(new GUIContent(Gx.Colored("Rocket equation: ", Theme.Orange) + "Δv = Isp · g0 · ln(m_full / m_empty). Each stage is computed separately; spent stages are dropped. " +
+                "Payload counts as dead mass for every stage, so heavier cargo means less delta-v.",
+                "Konstantin Tsiolkovsky, 1903. g0 = 9.81 m/s². Isp (specific impulse) is the engine's efficiency: kerosene/LOX ~300 s, hydrogen/LOX ~450 s."), Theme.DimLabel);
             Scroll = GUILayout.BeginScrollView(Scroll);
             foreach (var rocket in Sim.Db.Rockets)
             {
@@ -28,8 +31,18 @@ namespace StellarIndustries.Unity.UI.Panels
                 GUILayout.Label(fleet.Count == 0 ? Gx.Colored("none built", Theme.Dim) : string.Join("  ", fleet.Select(f => Sim.Db.Location(f.l).Name + ": " + Gx.Colored(f.n.ToString("0"), Theme.Good))), Theme.Label);
                 GUILayout.EndHorizontal();
                 GUILayout.Label(rocket.Description, Theme.DimLabel);
-                GUILayout.Label($"Cargo {NumberFormat.Short(rocket.CargoCapacity)}  ·  Range tier {rocket.RangeTier}  ·  Reliability {NumberFormat.Percent(System.Math.Min(1, rocket.Reliability + Sim.Modifiers.Sum(ModifierType.RocketReliability)))}" +
-                                $"  ·  {(rocket.CanLand ? "Lands" : "No landing")}  ·  {(rocket.Reusable ? Gx.Colored("Reusable", Theme.Good) : "Expendable")}  ·  Fuel: {Fmt.Amounts(Sim.Db, rocket.FuelCost)}", Theme.Small);
+                GUILayout.Label($"Cargo bay {NumberFormat.Short(rocket.CargoCapacity)} units  ·  Reliability {NumberFormat.Percent(Sim.Missions.Reliability(rocket))} ({Sim.State.Flights(rocket.Id)} flights)" +
+                                $"  ·  {(rocket.CanLand ? "Lands" : "No landing")}  ·  {(rocket.Reusable ? Gx.Colored("Reusable", Theme.Good) : "Expendable")}", Theme.Small);
+                GUILayout.Label("Propellant per launch: " + Fmt.Amounts(Sim.Db, Core.Systems.SpacePhysics.Propellant(rocket)) + Gx.Colored("  (1 unit = 10 t)", Theme.Dim), Theme.Small);
+                if (Core.Systems.SpacePhysics.HasPhysics(rocket))
+                {
+                    GUILayout.Label($"Lift-off mass {NumberFormat.Short(Core.Systems.SpacePhysics.TotalMassT(rocket))} t  ·  Δv empty {Core.Systems.SpacePhysics.DeltaV(rocket, 0):0.0} km/s", Theme.Small);
+                    foreach (var st in rocket.Stages)
+                        GUILayout.Label($"   {st.Name}: {st.DryMassT:0.#} t dry + {st.PropellantMassT:0.#} t {st.Propellant}, Isp {st.IspSeconds:0} s", Theme.DimLabel);
+                    var targets = Sim.Db.Missions.Where(m => m.DeltaVKms > 0 && Sim.Missions.RocketSuitable(m, rocket)).GroupBy(m => m.DeltaVKms).Select(g => g.First());
+                    var payloads = targets.Select(m => m.Name + ": " + Core.Systems.SpacePhysics.MaxPayloadT(rocket, m.DeltaVKms).ToString("0.#") + " t").ToList();
+                    if (payloads.Count > 0) GUILayout.Label("Max payload: " + string.Join("  ·  ", payloads), Theme.Small);
+                }
                 if (recipe != null)
                 {
                     GUILayout.Label("Assembly: " + Fmt.Cost(Sim, Loc, recipe.Inputs) + "  (" + recipe.Duration + "s)", Theme.Small);

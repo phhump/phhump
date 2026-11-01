@@ -33,6 +33,8 @@ namespace StellarIndustries.Core.Data
         public bool IsGlobal;
         /// <summary>Base storage per location. Negative = use the category default.</summary>
         public double BaseStorage = -1;
+        /// <summary>Mass of one unit in tonnes (cargo / rocket equation). Negative = category default.</summary>
+        public double MassPerUnitT = -1;
     }
 
     public enum BuildingCategory { Extraction, Processing, Manufacturing, Assembly, Power, Research, Storage }
@@ -85,6 +87,8 @@ namespace StellarIndustries.Core.Data
         public string RequiredDeposit = "";
         /// <summary>Can be executed instantly by the player (active play bootstrap).</summary>
         public bool ManualCraftable;
+        /// <summary>If set, the location's atmosphere must contain this word (e.g. "Oxygen" for air separation).</summary>
+        public string RequiredAtmosphere = "";
     }
 
     public enum ModifierType
@@ -132,6 +136,23 @@ namespace StellarIndustries.Core.Data
         HeavyLift, InterstellarShip, ConstructionVessel
     }
 
+    public enum PropellantType { Kerolox, Hydrolox }
+
+    /// <summary>One rocket stage for the Tsiolkovsky rocket equation.</summary>
+    [Serializable]
+    public class RocketStage
+    {
+        public string Name = "";
+        public double DryMassT;
+        public double PropellantMassT;
+        /// <summary>Effective specific impulse (s).</summary>
+        public double IspSeconds = 300;
+        public PropellantType Propellant = PropellantType.Kerolox;
+        public RocketStage() { }
+        public RocketStage(string name, double dry, double prop, double isp, PropellantType p)
+        { Name = name; DryMassT = dry; PropellantMassT = prop; IspSeconds = isp; Propellant = p; }
+    }
+
     [Serializable]
     public class RocketDef
     {
@@ -148,7 +169,10 @@ namespace StellarIndustries.Core.Data
         public bool Reusable;
         public double Reliability = 0.9;
         public double SpeedMultiplier = 1;
+        /// <summary>Optional explicit propellant cost. If empty, it is derived from the stages.</summary>
         public List<ResourceAmount> FuelCost = new List<ResourceAmount>();
+        /// <summary>Stages, bottom first. If present, missions with DeltaVKms use the rocket equation.</summary>
+        public List<RocketStage> Stages = new List<RocketStage>();
     }
 
     [Serializable]
@@ -184,6 +208,15 @@ namespace StellarIndustries.Core.Data
         public double VisualRadius = 1;
         /// <summary>Visual orbit period in seconds.</summary>
         public double OrbitPeriod = 120;
+        // Real physical data (NASA planetary fact sheets). Used for UI facts and solar power.
+        public double RadiusKm;
+        public double EscapeVelocityKms;
+        public double DayLengthHours;
+        public double DistanceAU;
+        /// <summary>Solar irradiance above the atmosphere (W/m²). If > 0 solar output is computed from it.</summary>
+        public double IrradianceWm2;
+        /// <summary>Fraction of sunlight reaching the surface (atmosphere, dust). Simplified average.</summary>
+        public double SurfaceTransmission = 1;
     }
 
     public enum MissionType { Launch, Landing, Cargo, Survey }
@@ -213,6 +246,15 @@ namespace StellarIndustries.Core.Data
         public List<ResourceAmount> FirstTimeRewards = new List<ResourceAmount>();
         public string UnlockLocation = "";
         public List<string> UnlockFeatures = new List<string>();
+        /// <summary>Delta-v budget (km/s) at the best launch window. 0 = use RequiredRangeTier only.</summary>
+        public double DeltaVKms;
+        /// <summary>Real-world transit time for flavour text (the game compresses time).</summary>
+        public double RealTransitDays;
+        /// <summary>Launch window cycle in game seconds (compressed synodic period). 0 = always open.</summary>
+        public double SynodicPeriodSeconds;
+        /// <summary>Extra delta-v needed at the worst point of the cycle.</summary>
+        public double WindowPenaltyKms;
+        public string ScienceNote = "";
     }
 
     public enum AchievementCondition { ResourceProduced, MissionCompleted, LocationUnlocked, TechCount, BuildingCount, RocketsLaunched, TechCompleted }

@@ -55,9 +55,11 @@ namespace StellarIndustries.Core.Systems
                     double reservedForFuel = 0;
                     foreach (var f in missions.FuelCost(m, r)) if (f.ResourceId == route.CargoResource) reservedForFuel += f.Amount;
                     double available = inv.Get(m.Origin, route.CargoResource) - reservedForFuel;
+                    double maxNow = missions.MaxCargoUnits(m, r, route.CargoResource);
                     double wanted = Math.Min(route.CargoAmount, r.CargoCapacity);
+                    if (maxNow < wanted * 0.25) { route.LastStatus = "Waiting for launch window"; continue; }
                     if (available < wanted * 0.25) { route.LastStatus = "Waiting for cargo"; continue; }
-                    amount = Math.Floor(Math.Min(wanted, available));
+                    amount = Math.Floor(Math.Min(Math.Min(wanted, available), maxNow));
                 }
                 var problem = missions.LaunchProblem(m.Id, r.Id, route.CargoResource, amount);
                 if (problem != null) { route.LastStatus = problem; continue; }

@@ -23,7 +23,10 @@ namespace StellarIndustries.Unity.UI.Panels
             GUILayout.BeginArea(r);
             var def = Sim.Db.Location(Loc);
             Heading(def.Name + " Industries");
-            GUILayout.Label($"Gravity {def.Gravity:0.00} g  ·  {def.Atmosphere}  ·  {def.TemperatureC:0} °C  ·  Solar {NumberFormat.Percent(def.SolarMultiplier)}  ·  Wind {(def.HasWind ? "yes" : "no")}", Theme.Small);
+            GUILayout.Label(new GUIContent($"Gravity {def.Gravity:0.00} g  ·  {def.Atmosphere}  ·  {def.TemperatureC:0} °C  ·  Solar {NumberFormat.Percent(Core.Systems.SpacePhysics.SolarFactor(def))}  ·  Wind {(def.HasWind ? "yes" : "no")}",
+                "Solar output = irradiance x atmospheric transmission, relative to Earth's surface. Irradiance falls with 1/distance² (inverse-square law)."), Theme.Small);
+            if (def.RadiusKm > 0)
+                GUILayout.Label($"Radius {def.RadiusKm:0} km  ·  Escape velocity {def.EscapeVelocityKms:0.00} km/s  ·  Day {def.DayLengthHours:0.#} h  ·  Sunlight {def.IrradianceWm2:0} W/m² at {def.DistanceAU:0.###} AU", Theme.DimLabel);
             GUILayout.Label("Deposits: " + string.Join(", ", def.Deposits.Select(d => Sim.Db.ResourceName(d.ResourceId) + " " + NumberFormat.Percent(d.Richness))), Theme.DimLabel);
             if (def.Hazards.Count > 0) GUILayout.Label("Hazards: " + string.Join(", ", def.Hazards), Theme.DimLabel);
             GUILayout.Space(4);

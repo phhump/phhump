@@ -4,7 +4,7 @@ An idle / incremental space-industry simulator for Unity. You start with one min
 one wind turbine on Earth, research rocketry, build your first rocket, reach orbit, land on the Moon,
 build a lunar industry from local resources and — with enough research — head for Mars.
 
-> **Status:** playable test build. The simulation core is compiled and covered by 19 automated
+> **Status:** playable test build. The simulation core is compiled and covered by 25 automated
 > tests (including a bot that plays from scratch to helium-3 mining on the Moon). The Unity layer
 > compiles against UnityEngine 2021.3 LTS reference assemblies, but it has **not yet been run
 > inside the Unity Editor** in this environment — please report anything that looks off.
@@ -44,11 +44,13 @@ Settings → *Developer tools* offers game speed 1–100×, "simulate offline ti
 - **Idle/offline**: offline progression with cap (8 h base) and efficiency (50 % base), both upgradeable; clock-rollback protection; summary screen.
 - **Save system**: 3 slots, autosave, versioned format with checksum, atomic writes, rolling backup, automatic repair of unknown/invalid data, migration hook.
 - **3D presentation**: procedural planets, installations visible on the surface (status blinking), launch animations with trails (pooled), solar-system map with orbits and missions in flight.
+- **Scientific realism** (see `Docs/SCIENCE.md`, sources: NASA fact sheets, Wikipedia *Delta-v budget*): staged rocket equation, real Δv budgets, cargo mass limits, Mars launch windows (synodic period), inverse-square solar power, air separation for LOX, flight-heritage reliability, real planet data in the UI.
 - **UI**: main menu with slots, 10 screens, progressive unlocking of screens, tooltips, notifications, objectives.
 
 ## Tests & compile checks (no Unity required)
 ```bash
 Tools/HeadlessTests/run.sh                       # builds core as netstandard2.1/C# 9 and runs all tests
+dotnet run --project Tools/HeadlessTests/Runner/HeadlessTests.csproj -- --bot-trace   # balancing trace of the bot
 dotnet build Tools/UnityCompileCheck/Runtime/Runtime.csproj               # Unity layer vs UnityEngine 2021.3
 dotnet build Tools/UnityCompileCheck/EditorAndTests/EditorAndTests.csproj # editor scripts + NUnit wrapper
 ```
@@ -58,3 +60,4 @@ Inside Unity: *Window → General → Test Runner → EditMode* runs the same su
 - `Docs/ARCHITECTURE.md` — systems, data flow, design decisions
 - `Docs/ADDING_CONTENT.md` — add planets, resources, buildings, recipes, rockets, missions without code
 - `Docs/ROADMAP.md` — milestone status and next steps
+- `Docs/SCIENCE.md` — physics model, real data, sources and deliberate simplifications

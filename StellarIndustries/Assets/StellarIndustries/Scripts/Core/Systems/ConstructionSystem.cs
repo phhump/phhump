@@ -34,10 +34,14 @@ namespace StellarIndustries.Core.Systems
                 var r = db.Recipe(id);
                 if (r == null || !IsUnlocked(r)) continue;
                 if (!string.IsNullOrEmpty(r.RequiredDeposit) && !HasDeposit(locationId, r.RequiredDeposit)) continue;
+                if (!AtmosphereOk(r, locationId)) continue;
                 list.Add(r);
             }
             return list;
         }
+
+        public bool AtmosphereOk(RecipeDef r, string locationId)
+            => string.IsNullOrEmpty(r.RequiredAtmosphere) || (db.Location(locationId)?.Atmosphere ?? "").Contains(r.RequiredAtmosphere);
 
         public int CountAt(string defId, string locationId) => state.Buildings.Count(b => b.DefId == defId && b.LocationId == locationId);
 

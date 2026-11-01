@@ -38,6 +38,12 @@ namespace StellarIndustries.Tests
             ("Offline progression respects storage", OfflineRespectsStorage),
             ("Clock rollback grants nothing", ClockRollback),
             ("Simulation is deterministic", Determinism),
+            ("Rocket equation matches analytic value", RocketEquation),
+            ("Every mission is flyable with useful payload", MissionsFlyable),
+            ("Overloaded rocket is blocked by delta-v", DeltaVBlocksOverload),
+            ("Mars launch window changes delta-v", MarsLaunchWindow),
+            ("Flight heritage improves reliability", FlightHeritage),
+            ("Solar power follows irradiance", SolarPhysics),
             ("Bot playthrough reaches the Moon and harvests He-3", BotPlaythrough),
         };
 
@@ -76,6 +82,12 @@ namespace StellarIndustries.Tests
         static void Give(GameSimulation sim, string res, double amt, string loc = "earth") => sim.Inventory.Add(loc, res, amt, false);
         static void CompleteTech(GameSimulation sim, params string[] ids) { foreach (var id in ids) sim.Research.Complete(id); }
         static void CompleteAllTechs(GameSimulation sim) { foreach (var t in sim.Db.Techs) sim.Research.Complete(t.Id); }
+        static void GiveLaunch(GameSimulation sim, string mission, string rocket, string loc = "earth")
+        {
+            var m = sim.Db.Mission(mission); var r = sim.Db.Rocket(rocket);
+            Give(sim, r.VehicleResourceId, 1, loc);
+            foreach (var f in sim.Missions.FuelCost(m, r)) Give(sim, f.ResourceId, f.Amount, loc);
+        }
 
         // ---------------------------------------------------------------- tests
         static void ContentValidates()
@@ -201,7 +213,7 @@ namespace StellarIndustries.Tests
             Assert(sim.State.Completions("suborbital_test") == 1, "mission completed");
             Assert(Get(sim, "science") >= 60 - 1e-6, "science reward granted (incl. first time bonus)");
 
-            Give(sim, "lunar_rocket", 1); Give(sim, "rocket_fuel", 150); Give(sim, "liquid_oxygen", 120); Give(sim, "steel", 30);
+            GiveLaunch(sim, "lunar_landing", "lunar"); Give(sim, "steel", 30);
             var lm = sim.Missions.Launch("lunar_landing", "lunar", "steel", 30);
             Assert(lm != null, "lunar landing launched: " + sim.Missions.LaunchProblem("lunar_landing", "lunar", "steel", 30));
             lm.SuccessChance = 1;
@@ -224,13 +236,13 @@ namespace StellarIndustries.Tests
             var sim = NewSim(5);
             CompleteAllTechs(sim);
             sim.Missions.UnlockLocation("moon");
-            Give(sim, "cargo_rocket", 1); Give(sim, "rocket_fuel", 200); Give(sim, "liquid_oxygen", 160); Give(sim, "circuit", 90);
-            var m = sim.Missions.Launch("lunar_supply", "cargo", "circuit", 90);
-            Assert(m != null, "cargo launch: " + sim.Missions.LaunchProblem("lunar_supply", "cargo", "circuit", 90));
+            GiveLaunch(sim, "lunar_supply", "cargo"); Give(sim, "circuit", 90);
+            var m = sim.Missions.Launch("lunar_supply", "cargo", "circuit", 60);
+            Assert(m != null, "cargo launch: " + sim.Missions.LaunchProblem("lunar_supply", "cargo", "circuit", 60));
             Assert(sim.Missions.LaunchProblem("lunar_supply", "cargo", "circuit", 1000) != null, "cargo capacity enforced");
             m.SuccessChance = 1;
             Run(sim, m.Duration + 1);
-            Near(Get(sim, "circuit", "moon"), 90, 1e-6, "cargo delivered");
+            Near(Get(sim, "circuit", "moon"), 60, 1e-6, "cargo delivered");
             Near(Get(sim, "cargo_rocket"), 1, 1e-6, "reusable rocket returned");
         }
 
@@ -239,11 +251,12 @@ namespace StellarIndustries.Tests
             var sim = NewSim(3);
             CompleteAllTechs(sim);
             sim.Missions.UnlockLocation("moon");
-            Give(sim, "cargo_rocket", 1); Give(sim, "rocket_fuel", 600); Give(sim, "liquid_oxygen", 600); Give(sim, "steel", 300);
+            Give(sim, "cargo_rocket", 1); Give(sim, "rocket_fuel", 600); Give(sim, "liquid_oxygen", 600); Give(sim, "hydrogen", 100); Give(sim, "steel", 300);
             var route = sim.Logistics.CreateRoute("lunar_supply", "cargo", "steel", 100);
             Assert(route != null, "route created");
             Run(sim, 2);
             Assert(sim.State.ActiveMissions.Count == 1 && route.Launches == 1, "route launched automatically");
+            Give(sim, "liquid_oxygen", 600); // LOX is ~72% of kerolox propellant mass: refill for the second flight
             sim.State.ActiveMissions[0].SuccessChance = 1;
             Run(sim, sim.State.ActiveMissions[0].Duration + 3);
             Assert(route.Launches == 2, "route relaunched after return, launches=" + route.Launches);
@@ -365,6 +378,94 @@ namespace StellarIndustries.Tests
                 return t.Substring(t.IndexOf('\n'));
             }
             Assert(Play() == Play(), "same seed and inputs give identical state");
+        }
+
+        // ---------------------------------------------------------------- physics
+        static void RocketEquation()
+        {
+            var r = new RocketDef { Stages = new List<RocketStage> { new RocketStage("s", 1, 9, 300, PropellantType.Kerolox) } };
+            double expected = 300 * SpacePhysics.G0 * Math.Log(10.0) / 1000; // m0/mf = 10
+            Near(SpacePhysics.DeltaV(r, 0), expected, 1e-9, "single stage Tsiolkovsky");
+            var two = new RocketDef { Stages = new List<RocketStage> { new RocketStage("a", 1, 9, 300, PropellantType.Kerolox), new RocketStage("b", 1, 9, 300, PropellantType.Kerolox) } };
+            double upper = expected, lower = 300 * SpacePhysics.G0 * Math.Log(20.0 / 11.0) / 1000;
+            Near(SpacePhysics.DeltaV(two, 0), upper + lower, 1e-9, "two stages, upper stage is payload of the lower one");
+            double p = SpacePhysics.MaxPayloadT(two, 5);
+            Near(SpacePhysics.DeltaV(two, p), 5, 1e-3, "max payload hits the requirement");
+            Assert(SpacePhysics.MaxPayloadT(r, 100) < 0, "impossible requirement reports -1");
+            var prop = SpacePhysics.Propellant(new RocketDef { Stages = new List<RocketStage> { new RocketStage("k", 10, 356, 300, PropellantType.Kerolox) } });
+            Near(prop.First(x => x.ResourceId == "liquid_oxygen").Amount, 26, 1e-9, "LOX is 2.56/3.56 of kerolox mass (256 t = 25.6 -> 26 units)");
+        }
+
+        static void MissionsFlyable()
+        {
+            var sim = NewSim();
+            foreach (var m in sim.Db.Missions)
+            {
+                var rockets = sim.Missions.SuitableRockets(m).ToList();
+                Assert(rockets.Count > 0, m.Id + " has a suitable rocket");
+                if (m.AllowsCargo && m.DeltaVKms > 0)
+                    Assert(rockets.Any(r => SpacePhysics.MaxPayloadT(r, m.DeltaVKms) >= 4), m.Id + " can carry at least 4 t at the best window");
+            }
+            Assert(!sim.Missions.RocketSuitable(sim.Db.Mission("orbital_launch"), sim.Db.Rocket("sounding")), "sounding rocket cannot reach orbit");
+            Assert(!sim.Missions.RocketSuitable(sim.Db.Mission("lunar_landing"), sim.Db.Rocket("orbital")), "orbital rocket cannot land on the Moon");
+            Assert(sim.Missions.RocketSuitable(sim.Db.Mission("lunar_export"), sim.Db.Rocket("shuttle")), "shuttle can leave the Moon");
+            Assert(!sim.Missions.RocketSuitable(sim.Db.Mission("lunar_supply"), sim.Db.Rocket("shuttle")), "shuttle cannot launch from Earth");
+        }
+
+        static void DeltaVBlocksOverload()
+        {
+            var sim = NewSim(11);
+            CompleteAllTechs(sim);
+            sim.Missions.UnlockLocation("moon");
+            var m = sim.Db.Mission("lunar_supply"); var r = sim.Db.Rocket("lunar");
+            GiveLaunch(sim, "lunar_supply", "lunar"); Give(sim, "circuit", 100);
+            double max = sim.Missions.MaxCargoUnits(m, r, "circuit");
+            Assert(max > 0 && max < 60, "physics limits heavy cargo below the cargo bay, max=" + max);
+            var problem = sim.Missions.LaunchProblem(m.Id, r.Id, "circuit", max + 1);
+            Assert(problem != null && problem.Contains("delta-v"), "overload rejected: " + problem);
+            Assert(sim.Missions.LaunchProblem(m.Id, r.Id, "circuit", max) == null, "max cargo accepted");
+            Assert(sim.Missions.MaxCargoUnits(m, r, "helium3") == r.CargoCapacity, "light cargo limited by the bay, not by mass");
+        }
+
+        static void MarsLaunchWindow()
+        {
+            var sim = NewSim(12);
+            var m = sim.Db.Mission("mars_landing");
+            sim.State.GameTime = 0;
+            Near(sim.Missions.RequiredDeltaV(m), 14.7, 1e-9, "optimal window");
+            sim.State.GameTime = m.SynodicPeriodSeconds / 2;
+            Near(sim.Missions.RequiredDeltaV(m), 19.7, 1e-9, "worst point");
+            Near(SpacePhysics.TimeToOptimalWindow(m, sim.State.GameTime), m.SynodicPeriodSeconds / 2, 1e-6, "time to window");
+            var r = sim.Db.Rocket("mars");
+            double cargoWorst = sim.Missions.MaxCargoUnits(m, r, "steel");
+            sim.State.GameTime = 0;
+            double cargoBest = sim.Missions.MaxCargoUnits(m, r, "steel");
+            Assert(cargoBest > cargoWorst * 2, $"window matters: best {cargoBest} vs worst {cargoWorst}");
+            double t0 = sim.State.GameTime;
+            OfflineProgression.Apply(sim, 100);
+            Near(sim.State.GameTime - t0, 100, 1e-6, "game time advances offline");
+        }
+
+        static void FlightHeritage()
+        {
+            var sim = NewSim(13);
+            var r = sim.Db.Rocket("sounding");
+            double r0 = sim.Missions.Reliability(r);
+            sim.State.RocketFlights["sounding"] = 10;
+            double r10 = sim.Missions.Reliability(r);
+            Assert(r10 > r0 + 0.03 && r10 <= 0.99, $"heritage {r0} -> {r10}");
+            sim.State.RocketFlights["sounding"] = 1000;
+            Assert(sim.Missions.Reliability(r) <= 0.99, "capped");
+        }
+
+        static void SolarPhysics()
+        {
+            var db = DefaultContent.Create();
+            Near(SpacePhysics.SolarFactor(db.Location("earth")), 1.0, 1e-9, "Earth surface reference");
+            double moon = SpacePhysics.SolarFactor(db.Location("moon")), mars = SpacePhysics.SolarFactor(db.Location("mars"));
+            Assert(moon > 1.3 && moon < 1.4, "Moon: no atmosphere, ~1.33x (" + moon + ")");
+            Near(586.2 / 1361.0, 1 / (1.524 * 1.524), 0.01, "NASA irradiance follows the inverse-square law");
+            Assert(mars > 0.4 && mars < 0.55, "Mars ~0.49x (" + mars + ")");
         }
 
         // ---------------------------------------------------------------- bot playthrough

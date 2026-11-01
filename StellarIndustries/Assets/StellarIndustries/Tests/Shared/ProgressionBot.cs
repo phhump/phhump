@@ -29,6 +29,7 @@ namespace StellarIndustries.Tests
             G("earth","surface_mine","mine_coal",1), G("earth","smelter","make_steel",1,"steelmaking"),
             G("earth","surface_mine","mine_bauxite",2,"aluminum_processing"), G("earth","smelter","smelt_aluminum",1,"aluminum_processing"),
             G("earth","water_pump","pump_water",1), G("earth","chemical_plant","make_lox",2,"cryogenics"),
+            G("earth","chemical_plant","electrolysis",1,"lunar_navigation"), G("earth","water_pump","pump_water",2,"lunar_navigation"),
             G("earth","surface_mine","mine_iron",7), G("earth","smelter","smelt_iron",4), G("earth","surface_mine","mine_copper",3), G("earth","smelter","draw_wire",3),
             G("earth","component_factory","make_circuit",2), G("earth","research_lab","research_circuits",2,"electronics_1"), G("earth","warehouse","",1),
             G("earth","surface_mine","mine_sand",1,"silicon_processing"), G("earth","smelter","make_wafer",1,"silicon_processing"), G("earth","surface_mine","mine_coal",2),
@@ -117,7 +118,8 @@ namespace StellarIndustries.Tests
                 foreach (var res in new[] { "silicon_wafer", "circuit", "copper_wire", "iron_plate" })
                 {
                     double have = sim.Inventory.Get("earth", res);
-                    if (have >= 30 && sim.Inventory.Get("moon", res) < 40) { TryLaunch("lunar_supply", "lunar", true, res, Math.Min(60, have)); break; }
+                    double max = sim.Missions.MaxCargoUnits(sim.Db.Mission("lunar_supply"), sim.Db.Rocket("lunar"), res);
+                    if (have >= 30 && sim.Inventory.Get("moon", res) < 40) { TryLaunch("lunar_supply", "lunar", true, res, Math.Min(max, have)); break; }
                 }
             }
         }

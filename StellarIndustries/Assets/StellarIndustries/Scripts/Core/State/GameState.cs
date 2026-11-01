@@ -104,6 +104,10 @@ namespace StellarIndustries.Core.State
         public long CreatedUtcTicks;
         public long LastSavedUtcTicks;
         public double PlayTime;
+        /// <summary>Simulated time including offline time. Drives launch windows.</summary>
+        public double GameTime;
+        /// <summary>Successful flights per rocket design (flight heritage → reliability).</summary>
+        public Dictionary<string, int> RocketFlights = new Dictionary<string, int>();
         public uint RngState = 12345;
         public int NextUid = 1;
         public string CurrentLocation = "earth";
@@ -132,5 +136,6 @@ namespace StellarIndustries.Core.State
         public bool HasFeature(string f) => Features.Contains(f);
         public bool IsUnlocked(string locationId) => UnlockedLocations.Contains(locationId);
         public int Completions(string missionId) => MissionCompletions.TryGetValue(missionId, out var c) ? c : 0;
+        public int Flights(string rocketId) => RocketFlights.TryGetValue(rocketId, out var c) ? c : 0;
     }
 }

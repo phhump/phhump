@@ -34,16 +34,43 @@ namespace StellarIndustries.Core.Systems
 
         public IEnumerable<MissionDef> AvailableMissions() => db.Missions.Where(IsAvailable);
 
-        public bool RocketSuitable(MissionDef m, RocketDef r)
-            => r.RangeTier >= m.RequiredRangeTier && (!m.RequiresLanding || r.CanLand) && (m.Type != MissionType.Cargo || r.CargoCapacity > 0);
+        /// <summary>Physics applies when the mission has a delta-v budget and the rocket has stages.</summary>
+        public static bool UsesPhysics(MissionDef m, RocketDef r) => m.DeltaVKms > 0 && SpacePhysics.HasPhysics(r);
+
+        /// <summary>Can this design fly the mission at all (empty, at the best launch window)?</summary>
+        public static bool CanEverFly(MissionDef m, RocketDef r)
+        {
+            if (m.RequiresLanding && !r.CanLand) return false;
+            if (m.Type == MissionType.Cargo && r.CargoCapacity <= 0) return false;
+            return UsesPhysics(m, r) ? SpacePhysics.DeltaV(r, 0) >= m.DeltaVKms - 1e-9 : r.RangeTier >= m.RequiredRangeTier;
+        }
+
+        public bool RocketSuitable(MissionDef m, RocketDef r) => CanEverFly(m, r);
+
+        public double RequiredDeltaV(MissionDef m) => SpacePhysics.RequiredDeltaV(m, state.GameTime);
+
+        public double CargoMassT(string resourceId, double amount) => amount <= 0 ? 0 : amount * SpacePhysics.MassPerUnit(db.Resource(resourceId));
+
+        /// <summary>Maximum cargo units right now: limited by cargo bay (units) and by the rocket equation (tonnes).</summary>
+        public double MaxCargoUnits(MissionDef m, RocketDef r, string resourceId)
+        {
+            double cap = r.CargoCapacity;
+            if (!UsesPhysics(m, r)) return cap;
+            double payload = SpacePhysics.MaxPayloadT(r, RequiredDeltaV(m));
+            if (payload < 0) return 0;
+            double mass = SpacePhysics.MassPerUnit(db.Resource(resourceId));
+            return mass <= 0 ? cap : Math.Min(cap, Math.Floor(payload / mass + 1e-9));
+        }
 
         public IEnumerable<RocketDef> SuitableRockets(MissionDef m) => db.Rockets.Where(r => RocketSuitable(m, r));
 
         public List<ResourceAmount> FuelCost(MissionDef m, RocketDef r)
-            => r.FuelCost.Select(f => new ResourceAmount(f.ResourceId, Math.Ceiling(f.Amount * m.FuelMultiplier))).ToList();
+            => SpacePhysics.Propellant(r).Select(f => new ResourceAmount(f.ResourceId, Math.Max(1, Math.Ceiling(f.Amount * m.FuelMultiplier)))).ToList();
 
-        public double SuccessChance(MissionDef m, RocketDef r)
-            => Math.Min(0.995, m.BaseSuccess * Math.Min(1.0, r.Reliability + mods.Sum(ModifierType.RocketReliability)));
+        public double Reliability(RocketDef r)
+            => Math.Min(0.99, r.Reliability + mods.Sum(ModifierType.RocketReliability) + SpacePhysics.HeritageBonus(state.Flights(r.Id)));
+
+        public double SuccessChance(MissionDef m, RocketDef r) => Math.Min(0.995, m.BaseSuccess * Reliability(r));
 
         public double Duration(MissionDef m, RocketDef r) => m.Duration / (mods.Multiplier(ModifierType.MissionSpeed) * Math.Max(0.01, r.SpeedMultiplier));
 
@@ -69,7 +96,19 @@ namespace StellarIndustries.Core.Systems
                 if (!m.AllowsCargo) return "Mission carries no cargo";
                 var cr = db.Resource(cargoRes);
                 if (cr == null || cr.IsGlobal) return "Invalid cargo";
-                if (cargoAmt > r.CargoCapacity + 1e-9) return "Cargo exceeds capacity (" + r.CargoCapacity + ")";
+                if (cargoAmt > r.CargoCapacity + 1e-9) return "Cargo exceeds the cargo bay (" + r.CargoCapacity + " units)";
+            }
+            if (UsesPhysics(m, r))
+            {
+                double need = RequiredDeltaV(m);
+                double have = SpacePhysics.DeltaV(r, CargoMassT(cargoRes, cargoAmt));
+                if (have + 1e-9 < need)
+                {
+                    string why = m.SynodicPeriodSeconds > 0 && SpacePhysics.WindowPhase(m, state.GameTime) > 0.05
+                        ? " Wait for the launch window (in " + NumberFormat.Duration(SpacePhysics.TimeToOptimalWindow(m, state.GameTime)) + ")" : "";
+                    return "Not enough delta-v: needs " + need.ToString("0.0") + " km/s, rocket has " + have.ToString("0.0") + " km/s with this cargo (max "
+                           + NumberFormat.Short(MaxCargoUnits(m, r, cargoRes)) + " units)." + why;
+                }
             }
             var cost = TotalLaunchCost(m, r, cargoRes, cargoAmt);
             if (!inv.Has(m.Origin, cost)) return inv.MissingText(m.Origin, cost);
@@ -118,6 +157,7 @@ namespace StellarIndustries.Core.Systems
             {
                 bool first = state.Completions(m.Id) == 0;
                 state.MissionCompletions[m.Id] = state.Completions(m.Id) + 1;
+                state.RocketFlights[r.Id] = state.Flights(r.Id) + 1;
                 state.Stats.MissionsSucceeded++;
                 if (first && !string.IsNullOrEmpty(m.UnlockLocation)) UnlockLocation(m.UnlockLocation);
                 if (mi.CargoAmount > 0)

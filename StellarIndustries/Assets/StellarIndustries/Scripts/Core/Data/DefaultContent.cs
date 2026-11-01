@@ -58,7 +58,8 @@ namespace StellarIndustries.Core.Data
             Res(db, "water", "Water", raw, "#3FA9F5", "Electrolysed into oxygen and hydrogen.");
             Res(db, "regolith", "Regolith", raw, "#9A9A9A", "Lunar soil, processed into useful minerals.");
             Res(db, "titanium_ore", "Titanium Ore", raw, "#B0C4DE", "Ilmenite, rich in lunar maria.");
-            Res(db, "helium3", "Helium-3", raw, "#E0F7FF", "Rare isotope implanted by the solar wind. Fusion fuel.");
+            Res(db, "helium3", "Helium-3", raw, "#E0F7FF", "Rare isotope implanted by the solar wind (~10 ppb in lunar regolith). Fusion fuel. 1 unit = 1 kg.");
+            db.Resource("helium3").MassPerUnitT = 0.001;
             Res(db, "water_ice", "Water Ice", raw, "#BFEFFF", "Frozen water from shadowed craters and polar caps.");
             Res(db, "rare_earths", "Rare Earths", raw, "#9B59B6", "Elements essential for advanced electronics.");
             Res(db, "co2", "Carbon Dioxide", raw, "#C9A27E", "Harvested from the Martian atmosphere.");
@@ -94,8 +95,8 @@ namespace StellarIndustries.Core.Data
         }
 
         static void Rec(GameDatabase db, string id, string name, List<ResourceAmount> inp, List<ResourceAmount> outp, double dur,
-            string tech = "", string deposit = "", bool manual = false)
-            => db.Add(new RecipeDef { Id = id, Name = name, Inputs = inp, Outputs = outp, Duration = dur, RequiredTech = tech, RequiredDeposit = deposit, ManualCraftable = manual });
+            string tech = "", string deposit = "", bool manual = false, string atmosphere = "")
+            => db.Add(new RecipeDef { Id = id, Name = name, Inputs = inp, Outputs = outp, Duration = dur, RequiredTech = tech, RequiredDeposit = deposit, ManualCraftable = manual, RequiredAtmosphere = atmosphere });
 
         static void AddRecipes(GameDatabase db)
         {
@@ -124,8 +125,9 @@ namespace StellarIndustries.Core.Data
             Rec(db, "smelt_titanium", "Smelt Titanium Alloy", R("titanium_ore", 3, "aluminum_sheet", 1), R("titanium_alloy", 1), 6, "titanium_metallurgy");
             Rec(db, "refine_fuel", "Refine RP-1 Fuel", R("crude_oil", 2), R("rocket_fuel", 2), 4, "petroleum");
             Rec(db, "make_plastic", "Produce Plastic", R("crude_oil", 2), R("plastic", 1), 4, "petroleum");
-            Rec(db, "make_lox", "Liquefy Oxygen", R("water", 2), R("liquid_oxygen", 1), 3, "cryogenics");
-            Rec(db, "electrolysis", "Water Electrolysis", R("water", 2), R("liquid_oxygen", 1, "hydrogen", 2), 4, "lunar_industry");
+            // Real LOX is made by cryogenic air separation (Linde process) - only power needed, but only where the air contains oxygen.
+            Rec(db, "make_lox", "Air Separation (LOX)", new List<ResourceAmount>(), R("liquid_oxygen", 1), 2, "cryogenics", atmosphere: "Oxygen");
+            Rec(db, "electrolysis", "Water Electrolysis", R("water", 2), R("liquid_oxygen", 1, "hydrogen", 2), 4, "cryogenics");
             Rec(db, "melt_ice", "Melt Ice", R("water_ice", 1), R("water", 2), 2, "lunar_industry");
             Rec(db, "process_regolith", "Process Regolith", R("regolith", 5), R("iron_ore", 1, "quartz_sand", 1, "bauxite", 1), 4, "lunar_industry");
             Rec(db, "co2_electrolysis", "CO2 Electrolysis (MOXIE)", R("co2", 2), R("liquid_oxygen", 1), 3, "mars_industry");
@@ -302,38 +304,58 @@ namespace StellarIndustries.Core.Data
             mi.Modifiers.Add(new ModifierDef(ModifierType.ExtractionSpeed, 0.2)); db.Add(mi);
         }
 
+        static RocketStage S(string n, double dry, double prop, double isp, PropellantType p) => new RocketStage(n, dry, prop, isp, p);
+
+        // Stage masses are game designs tuned with the real rocket equation; Isp values are typical:
+        // kerosene/LOX ~300-345 s, hydrogen/LOX ~420-450 s. See Docs/SCIENCE.md.
         static void AddRockets(GameDatabase db)
         {
+            var K = PropellantType.Kerolox; var H = PropellantType.Hydrolox;
             db.Add(new RocketDef { Id = "sounding", Name = "Sounding Rocket", Category = RocketCategory.BasicRocket, VehicleResourceId = "sounding_rocket",
-                RangeTier = 0, CargoCapacity = 0, Reliability = 0.92, FuelCost = R("rocket_fuel", 20), Description = "Suborbital test vehicle." });
+                RangeTier = 0, CargoCapacity = 0, Reliability = 0.92, FuelCost = R("rocket_fuel", 20),
+                Stages = new List<RocketStage> { S("Single stage", 0.4, 1.2, 230, K) },
+                Description = "Suborbital research rocket (think WAC Corporal). Uses storable propellant - no liquid oxygen needed." });
             db.Add(new RocketDef { Id = "orbital", Name = "Orbital Rocket", Category = RocketCategory.BasicRocket, VehicleResourceId = "orbital_rocket",
-                RangeTier = 1, CargoCapacity = 20, Reliability = 0.9, FuelCost = R("rocket_fuel", 60, "liquid_oxygen", 40), Description = "Reaches low Earth orbit." });
+                RangeTier = 1, CargoCapacity = 20, Reliability = 0.9,
+                Stages = new List<RocketStage> { S("Booster", 25, 400, 300, K), S("Upper stage", 4, 90, 345, K) },
+                Description = "Two-stage kerosene/LOX launcher. Staging drops empty tanks so the upper stage accelerates less dead mass." });
             db.Add(new RocketDef { Id = "lunar", Name = "Lunar Rocket", Category = RocketCategory.CrewSpacecraft, VehicleResourceId = "lunar_rocket",
-                RangeTier = 2, CanLand = true, CargoCapacity = 60, Reliability = 0.88, FuelCost = R("rocket_fuel", 150, "liquid_oxygen", 120), Description = "Expendable rocket with lunar lander." });
+                RangeTier = 2, CanLand = true, CargoCapacity = 60, Reliability = 0.88,
+                Stages = new List<RocketStage> { S("Kerosene booster", 130, 2100, 300, K), S("Hydrogen 2nd stage", 36, 440, 420, H), S("Transfer & lander", 8, 60, 440, H) },
+                Description = "Saturn V-style: kerosene first stage, high-efficiency hydrogen upper stages, lander." });
             db.Add(new RocketDef { Id = "cargo", Name = "Reusable Cargo Rocket", Category = RocketCategory.HeavyLift, VehicleResourceId = "cargo_rocket",
-                RangeTier = 2, CanLand = true, Reusable = true, CargoCapacity = 300, Reliability = 0.95, SpeedMultiplier = 1.2, FuelCost = R("rocket_fuel", 200, "liquid_oxygen", 160), Description = "Lands propulsively and flies again." });
+                RangeTier = 2, CanLand = true, Reusable = true, CargoCapacity = 300, Reliability = 0.95, SpeedMultiplier = 1.2,
+                Stages = new List<RocketStage> { S("Reusable booster", 220, 3300, 310, K), S("Hydrogen core", 70, 800, 450, H), S("Cargo lander", 14, 110, 450, H) },
+                Description = "Heavy lifter whose stages land and fly again. (Recovery propellant is abstracted.)" });
             db.Add(new RocketDef { Id = "shuttle", Name = "Lunar Shuttle", Category = RocketCategory.CargoRocket, VehicleResourceId = "lunar_shuttle",
-                RangeTier = 2, CanLand = true, Reusable = true, CargoCapacity = 150, Reliability = 0.96, FuelCost = R("hydrogen", 40, "liquid_oxygen", 40), Description = "Hydrolox shuttle built and fuelled on the Moon." });
+                RangeTier = 2, CanLand = true, Reusable = true, CargoCapacity = 150, Reliability = 0.96,
+                Stages = new List<RocketStage> { S("Hydrolox shuttle", 8, 22, 450, H) },
+                Description = "Single stage, built and fuelled on the Moon. Low lunar gravity (1/6 g) and aerobraking at Earth make this possible." });
             db.Add(new RocketDef { Id = "mars", Name = "Mars Transfer Vehicle", Category = RocketCategory.InterplanetaryTransport, VehicleResourceId = "mars_transfer",
-                RangeTier = 3, CanLand = true, CargoCapacity = 300, Reliability = 0.85, FuelCost = R("rocket_fuel", 400, "liquid_oxygen", 300), Description = "Interplanetary lander and transport." });
+                RangeTier = 3, CanLand = true, CargoCapacity = 300, Reliability = 0.85,
+                Stages = new List<RocketStage> { S("Booster", 220, 3300, 310, K), S("Transfer stage", 80, 900, 450, H), S("Entry & lander", 16, 130, 450, H) },
+                Description = "Interplanetary lander with heat shield: uses the Martian atmosphere to brake." });
         }
 
         static void AddLocations(GameDatabase db)
         {
             db.Add(new LocationDef { Id = "earth", Name = "Earth", BodyType = BodyType.Planet, Gravity = 1, Atmosphere = "Nitrogen / Oxygen", TemperatureC = 15,
                 SolarMultiplier = 1, HasWind = true, StartUnlocked = true, ColorHex = "#2E86DE", OrbitRadius = 30, VisualRadius = 1.0, OrbitPeriod = 600,
+                RadiusKm = 6371.0, EscapeVelocityKms = 11.19, DayLengthHours = 24.0, DistanceAU = 1.0, IrradianceWm2 = 1361.0, SurfaceTransmission = 0.75,
                 Description = "Home. Abundant resources, a breathable atmosphere and deep gravity well.",
                 Deposits = new List<DepositDef> { new DepositDef("iron_ore", 1), new DepositDef("copper_ore", 1), new DepositDef("bauxite", 0.8), new DepositDef("quartz_sand", 1),
                     new DepositDef("coal", 1), new DepositDef("crude_oil", 1), new DepositDef("water", 1.5) },
                 Hazards = L("Weather") });
-            db.Add(new LocationDef { Id = "moon", Name = "Moon", BodyType = BodyType.Moon, ParentId = "earth", Gravity = 0.166, Atmosphere = "None (vacuum)", TemperatureC = -20,
+            db.Add(new LocationDef { Id = "moon", Name = "Moon", BodyType = BodyType.Moon, ParentId = "earth", Gravity = 0.165, Atmosphere = "None (vacuum)", TemperatureC = -20,
                 SolarMultiplier = 1.4, ColorHex = "#BDBDBD", OrbitRadius = 3.5, VisualRadius = 0.35, OrbitPeriod = 90,
+                RadiusKm = 1737.4, EscapeVelocityKms = 2.38, DayLengthHours = 708.7, DistanceAU = 1.0, IrradianceWm2 = 1361.0, SurfaceTransmission = 1.0,
                 Description = "Low gravity makes it the perfect shipyard. Regolith, titanium, ice and helium-3.",
                 Deposits = new List<DepositDef> { new DepositDef("regolith", 1.5), new DepositDef("iron_ore", 0.6), new DepositDef("titanium_ore", 0.8),
                     new DepositDef("helium3", 0.5), new DepositDef("water_ice", 0.6), new DepositDef("rare_earths", 0.4) },
                 Hazards = L("Radiation", "Micrometeorites", "Two-week nights") });
-            db.Add(new LocationDef { Id = "mars", Name = "Mars", BodyType = BodyType.Planet, Gravity = 0.38, Atmosphere = "Thin CO2", TemperatureC = -63,
+            db.Add(new LocationDef { Id = "mars", Name = "Mars", BodyType = BodyType.Planet, Gravity = 0.38, Atmosphere = "Thin CO2 (~6 mbar)", TemperatureC = -65,
                 SolarMultiplier = 0.45, ColorHex = "#C0392B", OrbitRadius = 46, VisualRadius = 0.55, OrbitPeriod = 1100,
+                RadiusKm = 3389.5, EscapeVelocityKms = 5.03, DayLengthHours = 24.66, DistanceAU = 1.524, IrradianceWm2 = 586.2, SurfaceTransmission = 0.85,
                 Description = "Iron-rich soil, polar ice and a CO2 atmosphere waiting to be processed.",
                 Deposits = new List<DepositDef> { new DepositDef("iron_ore", 1.3), new DepositDef("quartz_sand", 1), new DepositDef("water_ice", 0.9),
                     new DepositDef("co2", 2), new DepositDef("rare_earths", 0.6), new DepositDef("regolith", 1) },
@@ -344,27 +366,36 @@ namespace StellarIndustries.Core.Data
         {
             db.Add(new MissionDef { Id = "suborbital_test", Name = "Suborbital Test Flight", Type = MissionType.Launch, Origin = "earth", Destination = "earth",
                 RequiredRangeTier = 0, Duration = 30, BaseSuccess = 1, RewardScience = 20, FirstTimeRewards = R("science", 40), RequiredTech = "basic_rocketry",
-                Description = "Prove your rockets fly. Gathers upper-atmosphere data." });
+                Description = "Prove your rockets fly. Gathers upper-atmosphere data.",
+                DeltaVKms = 2.0, RealTransitDays = 0.01, ScienceNote = "Reaching 100 km altitude needs ~1.4 km/s plus drag and gravity losses - far less than orbit, because you only go up, not sideways." });
             db.Add(new MissionDef { Id = "orbital_launch", Name = "Orbital Launch", Type = MissionType.Launch, Origin = "earth", Destination = "earth",
                 RequiredRangeTier = 1, Duration = 60, BaseSuccess = 1, RewardScience = 60, FirstTimeRewards = R("science", 100), RequiredTech = "orbital_rocketry",
-                UnlockFeatures = L(Features.Map), Description = "Place a satellite in orbit and open the solar system map." });
+                UnlockFeatures = L(Features.Map), Description = "Place a satellite in orbit and open the solar system map.",
+                DeltaVKms = 9.4, RealTransitDays = 0.01, ScienceNote = "Orbit means 7.8 km/s sideways. Gravity and air drag add 1.5-2 km/s: ~9.4 km/s to reach LEO." });
             db.Add(new MissionDef { Id = "lunar_landing", Name = "Lunar Landing", Type = MissionType.Landing, Origin = "earth", Destination = "moon",
                 RequiredRangeTier = 2, RequiresLanding = true, Duration = 150, BaseSuccess = 0.95, RewardScience = 120, AllowsCargo = true, RequiredTech = "lunar_navigation",
                 UnlockLocation = "moon", FirstTimeRewards = R("iron_plate", 80, "circuit", 40, "copper_wire", 40, "pipe", 20, "steel", 10, "silicon_wafer", 30),
-                Description = "Land on the Moon and deploy a starter base kit." });
+                Description = "Land on the Moon and deploy a starter base kit.",
+                DeltaVKms = 15.4, RealTransitDays = 3, ScienceNote = "LEO 9.4 + trans-lunar injection 3.2 + lunar orbit insertion 0.9 + landing ~1.9 km/s. No air on the Moon: every metre per second of braking costs fuel." });
             db.Add(new MissionDef { Id = "lunar_supply", Name = "Lunar Supply Run", Type = MissionType.Cargo, Origin = "earth", Destination = "moon",
                 RequiredRangeTier = 2, RequiresLanding = true, Duration = 120, BaseSuccess = 1, AllowsCargo = true, RequiredLocations = L("moon"),
-                Description = "Ship cargo from Earth to your lunar base." });
+                Description = "Ship cargo from Earth to your lunar base.",
+                DeltaVKms = 15.4, RealTransitDays = 3, ScienceNote = "Payload costs delta-v: every tonne of cargo lowers what the rocket can achieve. Light, valuable goods ship best." });
             db.Add(new MissionDef { Id = "lunar_export", Name = "Lunar Export", Type = MissionType.Cargo, Origin = "moon", Destination = "earth",
-                RequiredRangeTier = 2, RequiresLanding = true, Duration = 90, BaseSuccess = 1, FuelMultiplier = 0.5, AllowsCargo = true, RequiredLocations = L("moon"),
-                RequiredTech = "lunar_industry", Description = "Ship lunar products (helium-3, titanium) down to Earth." });
+                RequiredRangeTier = 2, RequiresLanding = true, Duration = 90, BaseSuccess = 1, AllowsCargo = true, RequiredLocations = L("moon"),
+                RequiredTech = "lunar_industry", Description = "Ship lunar products (helium-3, titanium) down to Earth.",
+                DeltaVKms = 2.8, RealTransitDays = 3, ScienceNote = "Leaving the Moon needs only ~2.8 km/s (escape velocity 2.38 km/s) and Earth's atmosphere brakes for free. The Moon is the natural shipyard of the inner solar system." });
             db.Add(new MissionDef { Id = "mars_landing", Name = "Mars Landing", Type = MissionType.Landing, Origin = "earth", Destination = "mars",
                 RequiredRangeTier = 3, RequiresLanding = true, Duration = 300, BaseSuccess = 0.92, RewardScience = 400, AllowsCargo = true, RequiredTech = "interplanetary_navigation",
                 UnlockLocation = "mars", FirstTimeRewards = R("steel", 60, "circuit", 60, "copper_wire", 60, "pipe", 30, "iron_plate", 100, "silicon_wafer", 60),
-                Description = "Establish the first Martian outpost." });
+                Description = "Establish the first Martian outpost.",
+                DeltaVKms = 14.7, WindowPenaltyKms = 5, SynodicPeriodSeconds = 1200, RealTransitDays = 255,
+                ScienceNote = "LEO 9.4 + Mars transfer 4.3 km/s, then aerobraking and a short powered landing. Earth and Mars line up every 780 days (synodic period); outside the window the trip costs far more delta-v." });
             db.Add(new MissionDef { Id = "mars_supply", Name = "Mars Supply Run", Type = MissionType.Cargo, Origin = "earth", Destination = "mars",
                 RequiredRangeTier = 3, RequiresLanding = true, Duration = 240, BaseSuccess = 1, AllowsCargo = true, RequiredLocations = L("mars"),
-                Description = "Ship cargo to Mars." });
+                Description = "Ship cargo to Mars.",
+                DeltaVKms = 14.7, WindowPenaltyKms = 5, SynodicPeriodSeconds = 1200, RealTransitDays = 255,
+                ScienceNote = "Launch windows open every 780 days (compressed to 20 minutes here). Automated routes wait for them." });
         }
 
         static void AddAchievements(GameDatabase db)

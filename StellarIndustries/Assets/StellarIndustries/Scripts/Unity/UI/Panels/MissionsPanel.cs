@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using StellarIndustries.Core.Data;
+using StellarIndustries.Core.Systems;
 using StellarIndustries.Core.Util;
 using UnityEngine;
 
@@ -64,6 +65,20 @@ namespace StellarIndustries.Unity.UI.Panels
             if (first && m.FirstTimeRewards.Count > 0) rewards.Add("first time: " + Fmt.Amounts(Sim.Db, m.FirstTimeRewards));
             if (first && !string.IsNullOrEmpty(m.UnlockLocation)) rewards.Add(Gx.Colored("unlocks " + Sim.Db.Location(m.UnlockLocation).Name, Theme.Orange));
             if (rewards.Count > 0) GUILayout.Label("Rewards: " + string.Join(" · ", rewards), Theme.Small);
+            if (m.DeltaVKms > 0)
+            {
+                double need = Sim.Missions.RequiredDeltaV(m);
+                string dv = "Delta-v budget: " + Gx.Colored(need.ToString("0.0") + " km/s", Theme.Cyan);
+                if (m.SynodicPeriodSeconds > 0)
+                {
+                    double phase = SpacePhysics.WindowPhase(m, Sim.State.GameTime);
+                    dv += phase < 0.15 ? Gx.Colored("  launch window OPEN", Theme.Good)
+                        : Gx.Colored("  window +" + (need - m.DeltaVKms).ToString("0.0") + " km/s, optimal in " + NumberFormat.Duration(SpacePhysics.TimeToOptimalWindow(m, Sim.State.GameTime)), Theme.Warn);
+                }
+                if (m.RealTransitDays >= 1) dv += Gx.Colored("  ·  real transit ≈ " + m.RealTransitDays.ToString("0") + " days", Theme.Dim);
+                GUILayout.Label(new GUIContent(dv, m.ScienceNote), Theme.Small);
+                if (!string.IsNullOrEmpty(m.ScienceNote)) GUILayout.Label(Gx.Colored("Science: ", Theme.Orange) + m.ScienceNote, Theme.DimLabel);
+            }
 
             var rockets = Sim.Missions.SuitableRockets(m).ToList();
             rocketSel.TryGetValue(m.Id, out int ri);
@@ -80,7 +95,8 @@ namespace StellarIndustries.Unity.UI.Panels
             GUILayout.Label(rocket == null ? "-" : rocket.Name + Gx.Colored("  (" + NumberFormat.Short(Sim.Inventory.Get(m.Origin, rocket.VehicleResourceId)) + " ready)", Theme.Dim), Theme.Label, GUILayout.Width(250));
             if (GUILayout.Button(">", Theme.Button, GUILayout.Width(22))) { rocketSel[m.Id] = (ri + 1) % rockets.Count; Gx.Changed(); }
             if (rocket != null)
-                GUILayout.Label($"{NumberFormat.Duration(Sim.Missions.Duration(m, rocket))} · {NumberFormat.Percent(Sim.Missions.SuccessChance(m, rocket))} success", Theme.Small);
+                GUILayout.Label(new GUIContent($"{NumberFormat.Duration(Sim.Missions.Duration(m, rocket))} · {NumberFormat.Percent(Sim.Missions.SuccessChance(m, rocket))} success",
+                    "Reliability grows with flight heritage: " + Sim.State.Flights(rocket.Id) + " successful flights of this design."), Theme.Small);
             GUILayout.EndHorizontal();
             if (rocket == null) { GUILayout.EndVertical(); return; }
 
@@ -94,7 +110,7 @@ namespace StellarIndustries.Unity.UI.Panels
                     if (ci >= options.Count) ci = 0;
                     cargoRes = options[ci];
                     cargoAmt.TryGetValue(m.Id, out float amt);
-                    double max = System.Math.Min(rocket.CargoCapacity, Sim.Inventory.Get(m.Origin, cargoRes));
+                    double max = System.Math.Min(Sim.Missions.MaxCargoUnits(m, rocket, cargoRes), Sim.Inventory.Get(m.Origin, cargoRes));
                     GUILayout.BeginHorizontal();
                     GUILayout.Label("Cargo:", Theme.Small, GUILayout.Width(44));
                     if (GUILayout.Button("<", Theme.Button, GUILayout.Width(22))) cargoSel[m.Id] = (ci - 1 + options.Count) % options.Count;
@@ -102,8 +118,13 @@ namespace StellarIndustries.Unity.UI.Panels
                     if (GUILayout.Button(">", Theme.Button, GUILayout.Width(22))) cargoSel[m.Id] = (ci + 1) % options.Count;
                     amt = Mathf.Round(GUILayout.HorizontalSlider(Mathf.Min(amt, (float)max), 0, (float)max, GUILayout.Width(180)));
                     cargoAmt[m.Id] = amt;
-                    GUILayout.Label(NumberFormat.Short(amt) + " / " + NumberFormat.Short(rocket.CargoCapacity), Theme.Small);
+                    double unitT = SpacePhysics.MassPerUnit(Sim.Db.Resource(cargoRes));
+                    GUILayout.Label(new GUIContent(NumberFormat.Short(amt) + " / " + NumberFormat.Short(Sim.Missions.MaxCargoUnits(m, rocket, cargoRes)) + "  (" + (amt * unitT).ToString("0.#") + " t)",
+                        "Max cargo = min(cargo bay " + rocket.CargoCapacity + " units, payload the rocket equation allows for this delta-v). 1 unit " + Sim.Db.ResourceName(cargoRes) + " = " + unitT + " t."), Theme.Small);
                     GUILayout.EndHorizontal();
+                    if (MissionSystem.UsesPhysics(m, rocket))
+                        GUILayout.Label("Rocket delta-v with this cargo: " + Gx.Colored(SpacePhysics.DeltaV(rocket, amt * unitT).ToString("0.0") + " km/s",
+                            SpacePhysics.DeltaV(rocket, amt * unitT) >= Sim.Missions.RequiredDeltaV(m) ? Theme.Good : Theme.Bad), Theme.Small);
                     cargo = amt;
                 }
             }

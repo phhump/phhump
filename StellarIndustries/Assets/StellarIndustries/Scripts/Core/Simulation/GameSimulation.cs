@@ -89,6 +89,7 @@ namespace StellarIndustries.Core.Simulation
         {
             if (dt <= 0 || double.IsNaN(dt)) return;
             double pdt = dt * Math.Max(0, productionScale);
+            State.GameTime += dt;
             Production.Tick(pdt);
             Research.Tick(pdt);
             Missions.Tick(dt);

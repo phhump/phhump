@@ -36,6 +36,8 @@ namespace StellarIndustries.Unity.UI.Panels
                     GUILayout.Label("Unexplored" + (mission != null ? " - reach it with: " + mission.Name : ""), Theme.DimLabel);
                 }
                 GUILayout.Label("Resources: " + string.Join(", ", def.Deposits.Select(d => Sim.Db.ResourceName(d.ResourceId))), Theme.DimLabel);
+                if (def.RadiusKm > 0)
+                    GUILayout.Label($"{def.Gravity:0.00} g · escape {def.EscapeVelocityKms:0.00} km/s · {def.DistanceAU:0.##} AU · day {def.DayLengthHours:0.#} h", Theme.DimLabel);
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("Focus", Theme.Button, GUILayout.Width(70))) UI.View.FocusBody = def.Id;
                 if (unlocked && Gx.Button("Manage", true, "Open the industries of " + def.Name, Theme.Accent, GUILayout.Width(80)))

@@ -90,7 +90,9 @@ namespace StellarIndustries.Core.Data
             foreach (var r in Rockets)
             {
                 CheckRes("Rocket " + r.Id, r.VehicleResourceId);
-                foreach (var f in r.FuelCost) CheckRes("Rocket " + r.Id, f.ResourceId);
+                foreach (var f in Systems.SpacePhysics.Propellant(r)) CheckRes("Rocket " + r.Id + " propellant", f.ResourceId);
+                foreach (var st in r.Stages)
+                    if (st.DryMassT <= 0 || st.PropellantMassT < 0 || st.IspSeconds <= 0) errors.Add("Rocket " + r.Id + " has an invalid stage " + st.Name);
             }
             foreach (var l in Locations)
             {
@@ -106,8 +108,8 @@ namespace StellarIndustries.Core.Data
                 foreach (var a in m.ExtraCost) CheckRes("Mission " + m.Id, a.ResourceId);
                 foreach (var a in m.RewardsAtDestination) CheckRes("Mission " + m.Id, a.ResourceId);
                 foreach (var a in m.FirstTimeRewards) CheckRes("Mission " + m.Id, a.ResourceId);
-                if (!Rockets.Any(r => r.RangeTier >= m.RequiredRangeTier && (!m.RequiresLanding || r.CanLand)))
-                    errors.Add("Mission " + m.Id + " cannot be flown by any rocket");
+                if (!Rockets.Any(r => Systems.MissionSystem.CanEverFly(m, r)))
+                    errors.Add("Mission " + m.Id + " cannot be flown by any rocket (check delta-v / landing / cargo)");
             }
             // Every resource must be obtainable: produced by a recipe, given as reward or start resource.
             foreach (var res in Resources)
