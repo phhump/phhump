@@ -22,7 +22,7 @@ namespace StellarIndustries.Unity.UI.Panels
         {
             GUILayout.BeginArea(r);
             var def = Sim.Db.Location(Loc);
-            Heading(def.Name + " Industries");
+            Heading(def.Name + " Industries", def.StarSystem != "sol" ? Sim.Db.StarSystem(def.StarSystem)?.Name + " system · " + def.Status : null);
             GUILayout.Label(new GUIContent($"Gravity {def.Gravity:0.00} g  ·  {def.Atmosphere}  ·  {def.TemperatureC:0} °C  ·  Solar {NumberFormat.Percent(Core.Systems.SpacePhysics.SolarFactor(def))}  ·  Wind {(def.HasWind ? "yes" : "no")}",
                 "Solar output = irradiance x atmospheric transmission, relative to Earth's surface. Irradiance falls with 1/distance² (inverse-square law)."), Theme.Small);
             if (def.RadiusKm > 0)

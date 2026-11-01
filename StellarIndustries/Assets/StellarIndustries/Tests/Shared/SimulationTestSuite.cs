@@ -44,6 +44,9 @@ namespace StellarIndustries.Tests
             ("Mars launch window changes delta-v", MarsLaunchWindow),
             ("Flight heritage improves reliability", FlightHeritage),
             ("Solar power follows irradiance", SolarPhysics),
+            ("Exoplanet data is physically consistent", ExoplanetData),
+            ("Seed ship needs fusion, chemistry is not enough", SeedShipPhysics),
+            ("Interstellar flow: survey, seed ship, colony industry", InterstellarFlow),
             ("Bot playthrough reaches the Moon and harvests He-3", BotPlaythrough),
         };
 
@@ -466,6 +469,64 @@ namespace StellarIndustries.Tests
             Assert(moon > 1.3 && moon < 1.4, "Moon: no atmosphere, ~1.33x (" + moon + ")");
             Near(586.2 / 1361.0, 1 / (1.524 * 1.524), 0.01, "NASA irradiance follows the inverse-square law");
             Assert(mars > 0.4 && mars < 0.55, "Mars ~0.49x (" + mars + ")");
+        }
+
+        static void ExoplanetData()
+        {
+            var db = DefaultContent.Create();
+            double fluxB = db.Location("proxima_b").IrradianceWm2 / SpacePhysics.SolarConstant;
+            Assert(fluxB > 0.6 && fluxB < 0.75, "Proxima b: L/a² gives ~65-70% of Earth's flux, got " + fluxB);
+            Near(db.Location("proxima_b").TemperatureC, 234 - 273.15, 1, "Proxima b equilibrium temperature (234 K)");
+            Near(DefaultContent.KeplerAU(0.122, 5.122), 0.0288, 0.0005, "Proxima d semi-major axis from Kepler's third law");
+            double trappistFromL = 0.000566 / (0.02925 * 0.02925);
+            Assert(Math.Abs(trappistFromL - 0.604) / 0.604 < 0.15, "TRAPPIST-1e: L/a² agrees with the published 60.4% within 15% (" + trappistFromL + ")");
+            Near(db.Location("trappist1_e").Gravity, 0.82, 0.01, "TRAPPIST-1e gravity from measured mass and radius");
+            foreach (var l in db.Locations.Where(x => x.StarSystem != "sol"))
+            {
+                Assert(db.StarSystem(l.StarSystem).DistanceLy > 4, l.Id + " is in another star system");
+                Assert(!string.IsNullOrEmpty(l.Status), l.Id + " carries its scientific status");
+            }
+            Assert(db.Location("eps_eri_b") != null && SpacePhysics.SolarFactor(db.Location("eps_eri_b")) < 0.05, "Epsilon Eridani b: sunlight too weak for solar");
+        }
+
+        static void SeedShipPhysics()
+        {
+            var db = DefaultContent.Create();
+            var seed = db.Rocket("seed"); var m = db.Mission("seed_proxima_b");
+            double ve = seed.Stages[0].IspSeconds * SpacePhysics.G0 / 1000;
+            Assert(ve >= 9210 && ve <= 10600, "exhaust velocity within Project Daedalus' range: " + ve);
+            Near(m.DeltaVKms, 2 * 0.03 * SpacePhysics.SpeedOfLightKms, 1e-6, "accelerate to 3% c and brake");
+            Assert(MissionSystem.CanEverFly(m, seed), "seed ship can fly");
+            Assert(SpacePhysics.MaxPayloadT(seed, m.DeltaVKms) >= 20, "seed ship carries >= 20 t");
+            foreach (var r in db.Rockets.Where(x => x.Id != "seed")) Assert(!MissionSystem.CanEverFly(m, r), r.Id + " (chemical) cannot cross interstellar space");
+            Assert(!db.Missions.Any(x => x.Origin != "earth" && x.Origin != "moon" && x.Destination == "earth"), "no return supply lines from other stars");
+        }
+
+        static void InterstellarFlow()
+        {
+            var sim = NewSim(21);
+            CompleteAllTechs(sim);
+            sim.Missions.UnlockLocation("moon");
+            Assert(!sim.Missions.IsAvailable(sim.Db.Mission("seed_proxima_b")), "seed ship needs a survey first");
+            Assert(sim.Construction.Build("laser_array", "moon") == null, "laser array only on Earth");
+            Give(sim, "starshot_probe", 1); Give(sim, "beam_energy", 100);
+            var probe = sim.Missions.Launch("survey_alpha_centauri", "starshot");
+            Assert(probe != null, "probe launched: " + sim.Missions.LaunchProblem("survey_alpha_centauri", "starshot", "", 0));
+            probe.SuccessChance = 1;
+            Run(sim, probe.Duration + 1, 5);
+            Assert(sim.State.Completions("survey_alpha_centauri") == 1 && !sim.State.IsUnlocked("proxima_b"), "survey done, planet not yet reached");
+            Assert(sim.Missions.IsAvailable(sim.Db.Mission("seed_proxima_b")), "seed mission available after survey");
+            GiveLaunch(sim, "seed_proxima_b", "seed", "moon");
+            var ship = sim.Missions.Launch("seed_proxima_b", "seed", "", 0);
+            Assert(ship != null, "seed ship launched: " + sim.Missions.LaunchProblem("seed_proxima_b", "seed", "", 0));
+            ship.SuccessChance = 1;
+            Run(sim, ship.Duration + 1, 5);
+            Assert(sim.State.IsUnlocked("proxima_b"), "Proxima b reached");
+            Assert(sim.Construction.Build("solar_array", "proxima_b") != null, "solar array built from the seed kit");
+            Assert(sim.Construction.Build("surface_mine", "proxima_b") != null, "mine built on Proxima b");
+            Run(sim, 60);
+            Assert(Get(sim, "iron_ore", "proxima_b") + Get(sim, "regolith", "proxima_b") > 0, "colony produces local resources");
+            Assert(sim.Construction.Build("coal_plant", "proxima_b") == null, "no coal plants without an oxygen atmosphere");
         }
 
         // ---------------------------------------------------------------- bot playthrough

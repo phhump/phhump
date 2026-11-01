@@ -14,6 +14,8 @@ namespace StellarIndustries.Core.Data
         public readonly List<LocationDef> Locations = new List<LocationDef>();
         public readonly List<MissionDef> Missions = new List<MissionDef>();
         public readonly List<AchievementDef> Achievements = new List<AchievementDef>();
+        public readonly List<StarSystemDef> StarSystems = new List<StarSystemDef>();
+        readonly Dictionary<string, StarSystemDef> starSystems = new Dictionary<string, StarSystemDef>();
         public StartDef Start = new StartDef();
 
         readonly Dictionary<string, ResourceDef> resources = new Dictionary<string, ResourceDef>();
@@ -33,6 +35,8 @@ namespace StellarIndustries.Core.Data
         public GameDatabase Add(LocationDef d) { Locations.Add(d); locations[d.Id] = d; return this; }
         public GameDatabase Add(MissionDef d) { Missions.Add(d); missions[d.Id] = d; return this; }
         public GameDatabase Add(AchievementDef d) { Achievements.Add(d); return this; }
+        public GameDatabase Add(StarSystemDef d) { StarSystems.Add(d); starSystems[d.Id] = d; return this; }
+        public StarSystemDef StarSystem(string id) => id != null && starSystems.TryGetValue(id, out var v) ? v : null;
 
         public ResourceDef Resource(string id) => id != null && resources.TryGetValue(id, out var v) ? v : null;
         public BuildingDef Building(string id) => id != null && buildings.TryGetValue(id, out var v) ? v : null;
@@ -98,6 +102,7 @@ namespace StellarIndustries.Core.Data
             {
                 foreach (var d in l.Deposits) CheckRes("Location " + l.Id, d.ResourceId);
                 CheckLoc("Location " + l.Id + " parent", l.ParentId);
+                if (StarSystems.Count > 0 && StarSystem(l.StarSystem) == null) errors.Add("Location " + l.Id + ": unknown star system '" + l.StarSystem + "'");
             }
             foreach (var m in Missions)
             {
@@ -106,6 +111,7 @@ namespace StellarIndustries.Core.Data
                 CheckLoc("Mission " + m.Id + " unlock", m.UnlockLocation);
                 CheckTech("Mission " + m.Id, m.RequiredTech);
                 foreach (var a in m.ExtraCost) CheckRes("Mission " + m.Id, a.ResourceId);
+                foreach (var rm in m.RequiredMissions) if (Mission(rm) == null) errors.Add("Mission " + m.Id + ": unknown required mission '" + rm + "'");
                 foreach (var a in m.RewardsAtDestination) CheckRes("Mission " + m.Id, a.ResourceId);
                 foreach (var a in m.FirstTimeRewards) CheckRes("Mission " + m.Id, a.ResourceId);
                 if (!Rockets.Any(r => Systems.MissionSystem.CanEverFly(m, r)))

@@ -217,7 +217,7 @@ namespace StellarIndustries.Unity.UI
 
         void DrawMapLabels()
         {
-            if (View.Mode != SpaceView.ViewMode.Map) return;
+            if (View.Mode == SpaceView.ViewMode.Location) return;
             View.CollectLabels(labels);
             foreach (var l in labels)
             {
@@ -261,8 +261,12 @@ namespace StellarIndustries.Unity.UI
             }
         }
 
+        /// <summary>Star system selected in the galaxy view (read by the map panel).</summary>
+        public string SelectedStarSystem = "alpha_centauri";
+
         public void SelectBody(string id)
         {
+            if (id.StartsWith("sys:")) { SelectedStarSystem = id.Substring(4); View.FocusBody = id; return; }
             View.FocusBody = id;
             if (Sim.State.IsUnlocked(id)) Sim.State.CurrentLocation = id;
             else Notify(Sim.Db.Location(id)?.Name + " has not been reached yet. Check the Missions screen.", NotificationLevel.Info);

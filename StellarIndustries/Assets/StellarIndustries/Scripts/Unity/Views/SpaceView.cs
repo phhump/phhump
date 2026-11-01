@@ -17,7 +17,7 @@ namespace StellarIndustries.Unity.Views
     /// </summary>
     public class SpaceView : MonoBehaviour
     {
-        public enum ViewMode { Location, Map }
+        public enum ViewMode { Location, Map, Galaxy }
 
         public ViewMode Mode = ViewMode.Location;
         /// <summary>Left edge of the 3D viewport (0..1); the UI panel covers the area to the left.</summary>
@@ -27,7 +27,12 @@ namespace StellarIndustries.Unity.Views
         GameController gc;
         GameSimulation sim;
         Camera cam;
-        Transform root, locationRoot, mapRoot;
+        Transform root, locationRoot, mapRoot, galaxyRoot;
+        readonly Dictionary<string, Transform> stars = new Dictionary<string, Transform>();
+        readonly List<GameObject> galaxyDots = new List<GameObject>();
+        bool galaxyDirty = true;
+        /// <summary>Map units per sqrt(light-year): distances are compressed so 4 ly and 40 ly fit on one screen.</summary>
+        public const float GalaxyScale = 40f;
         GameObject planet;
         string shownLocation;
         bool buildingsDirty = true, mapDirty = true;
@@ -59,6 +64,7 @@ namespace StellarIndustries.Unity.Views
             root = new GameObject("World").transform;
             locationRoot = new GameObject("LocationView").transform; locationRoot.SetParent(root, false);
             mapRoot = new GameObject("MapView").transform; mapRoot.SetParent(root, false);
+            galaxyRoot = new GameObject("GalaxyView").transform; galaxyRoot.SetParent(root, false);
             SetupCamera();
             SetupLighting();
             VisualFactory.Starfield(root, 2500, 900);
@@ -118,6 +124,7 @@ namespace StellarIndustries.Unity.Views
             sim.Events.LocationUnlocked += OnLocationUnlocked;
             shownLocation = null;
             mapDirty = true;
+            galaxyDirty = true;
             Mode = ViewMode.Location;
         }
 
@@ -136,7 +143,7 @@ namespace StellarIndustries.Unity.Views
         }
 
         void OnBuildingsChanged(int uid) => buildingsDirty = true;
-        void OnLocationUnlocked(string id) => mapDirty = true;
+        void OnLocationUnlocked(string id) { mapDirty = true; galaxyDirty = true; }
 
         // ------------------------------------------------------------------ location view
         Texture2D TextureFor(LocationDef def)
@@ -296,6 +303,7 @@ namespace StellarIndustries.Unity.Views
             sunGo.GetComponent<Renderer>().sharedMaterial = VisualFactory.Unlit(new Color(1f, 0.85f, 0.45f));
             foreach (var def in gc.Db.Locations)
             {
+                if (def.StarSystem != "sol") continue; // other stars are shown in the galaxy view
                 var pivot = new GameObject("Pivot " + def.Name).transform;
                 pivot.SetParent(mapRoot, false);
                 var orbitColor = sim != null && sim.State.IsUnlocked(def.Id) ? new Color(0.17f, 0.85f, 1f, 0.35f) : new Color(0.5f, 0.55f, 0.6f, 0.18f);
@@ -362,9 +370,76 @@ namespace StellarIndustries.Unity.Views
             }
         }
 
+        // ------------------------------------------------------------------ galaxy view
+        /// <summary>Equatorial coordinates → 3D position (y = celestial north), distance compressed with sqrt.</summary>
+        public static Vector3 StarPosition(StarSystemDef s)
+        {
+            float r = GalaxyScale * Mathf.Sqrt((float)s.DistanceLy);
+            float ra = (float)s.RightAscensionDeg * Mathf.Deg2Rad, dec = (float)s.DeclinationDeg * Mathf.Deg2Rad;
+            return new Vector3(r * Mathf.Cos(dec) * Mathf.Cos(ra), r * Mathf.Sin(dec), r * Mathf.Cos(dec) * Mathf.Sin(ra));
+        }
+
+        bool SystemReached(string sys)
+        {
+            if (sim == null) return sys == "sol";
+            foreach (var id in sim.State.UnlockedLocations) if (gc.Db.Location(id)?.StarSystem == sys) return true;
+            return false;
+        }
+
+        void BuildGalaxy()
+        {
+            galaxyDirty = false;
+            foreach (Transform c in galaxyRoot) Destroy(c.gameObject);
+            stars.Clear();
+            foreach (var ly in new[] { 5f, 10f, 20f, 40f }) VisualFactory.Circle(galaxyRoot, GalaxyScale * Mathf.Sqrt(ly), new Color(0.17f, 0.85f, 1f, 0.12f), 128, 0.25f);
+            foreach (var s in gc.Db.StarSystems)
+            {
+                var pos = StarPosition(s);
+                var go = VisualFactory.Primitive(PrimitiveType.Sphere, s.Name, galaxyRoot, true);
+                go.transform.localPosition = pos;
+                go.transform.localScale = Vector3.one * (1.6f + 2.2f * Mathf.Pow((float)System.Math.Max(1e-4, s.LuminositySun), 0.2f));
+                go.GetComponent<Renderer>().sharedMaterial = VisualFactory.Unlit(VisualFactory.Hex(s.ColorHex, Color.white));
+                go.AddComponent<BodyTag>().LocationId = "sys:" + s.Id;
+                stars[s.Id] = go.transform;
+                if (s.Id == "sol") continue;
+                var lineGo = new GameObject("Link " + s.Name);
+                lineGo.transform.SetParent(galaxyRoot, false);
+                var lr = lineGo.AddComponent<LineRenderer>();
+                lr.useWorldSpace = false; lr.positionCount = 2; lr.SetPosition(0, Vector3.zero); lr.SetPosition(1, pos);
+                bool reached = SystemReached(s.Id);
+                var c = reached ? new Color(1f, 0.55f, 0.16f, 0.8f) : new Color(0.5f, 0.6f, 0.7f, 0.25f);
+                lr.widthMultiplier = reached ? 0.5f : 0.2f;
+                lr.sharedMaterial = VisualFactory.Unlit(c); lr.startColor = lr.endColor = c;
+            }
+        }
+
+        void UpdateGalaxy()
+        {
+            if (galaxyDirty) BuildGalaxy();
+            int n = 0;
+            if (sim != null)
+                foreach (var mi in sim.State.ActiveMissions)
+                {
+                    var def = sim.Db.Mission(mi.MissionId);
+                    var target = def != null ? sim.Db.Location(def.Destination) : null;
+                    if (target == null || target.StarSystem == "sol" || !stars.ContainsKey(target.StarSystem)) continue;
+                    if (galaxyDots.Count <= n)
+                    {
+                        var d = VisualFactory.Primitive(PrimitiveType.Sphere, "Interstellar mission", galaxyRoot);
+                        d.transform.localScale = Vector3.one * 1.2f;
+                        d.GetComponent<Renderer>().sharedMaterial = dotMat;
+                        galaxyDots.Add(d);
+                    }
+                    var dot = galaxyDots[n++];
+                    dot.SetActive(true);
+                    dot.transform.localPosition = Vector3.Lerp(Vector3.zero, stars[target.StarSystem].localPosition, Mathf.Clamp01((float)(mi.Elapsed / mi.Duration)));
+                }
+            for (int i = n; i < galaxyDots.Count; i++) if (galaxyDots[i].activeSelf) galaxyDots[i].SetActive(false);
+        }
+
         public string Pick(Vector2 screenPos)
         {
-            if (Mode != ViewMode.Map || cam == null) return null;
+            if ((Mode != ViewMode.Map && Mode != ViewMode.Galaxy) || cam == null) return null;
             if (!cam.pixelRect.Contains(screenPos)) return null;
             if (Physics.Raycast(cam.ScreenPointToRay(screenPos), out var hit, 5000f))
             {
@@ -379,7 +454,19 @@ namespace StellarIndustries.Unity.Views
         public void CollectLabels(List<Label> into)
         {
             into.Clear();
-            if (Mode != ViewMode.Map || cam == null) return;
+            if (cam == null) return;
+            if (Mode == ViewMode.Galaxy)
+            {
+                foreach (var s in gc.Db.StarSystems)
+                {
+                    if (!stars.TryGetValue(s.Id, out var t)) continue;
+                    var gp = cam.WorldToScreenPoint(t.position + Vector3.up * (t.localScale.y * 0.8f));
+                    if (gp.z <= 0) continue;
+                    into.Add(new Label { Id = "sys:" + s.Id, Name = s.Id == "sol" ? "Sun" : s.Name + "  " + s.DistanceLy.ToString("0.#") + " ly", Screen = gp, Unlocked = SystemReached(s.Id) });
+                }
+                return;
+            }
+            if (Mode != ViewMode.Map) return;
             foreach (var kv in mapBodies)
             {
                 var sp = cam.WorldToScreenPoint(kv.Value.T.position + Vector3.up * kv.Value.T.localScale.y * 0.7f);
@@ -393,7 +480,7 @@ namespace StellarIndustries.Unity.Views
 
         public void Zoom(float amount)
         {
-            float min = Mode == ViewMode.Map ? 4 : 2.2f, max = Mode == ViewMode.Map ? 220 : 20;
+            float min = Mode == ViewMode.Location ? 2.2f : 4, max = Mode == ViewMode.Galaxy ? 1500 : Mode == ViewMode.Map ? 220 : 20;
             targetDistance = Mathf.Clamp(targetDistance * (1 + amount * 0.06f), min, max);
         }
 
@@ -401,8 +488,8 @@ namespace StellarIndustries.Unity.Views
         {
             if (Mode == mode) return;
             Mode = mode;
-            targetDistance = mode == ViewMode.Map ? 95 : 6.5f;
-            pitch = mode == ViewMode.Map ? 50 : 15;
+            targetDistance = mode == ViewMode.Galaxy ? 520 : mode == ViewMode.Map ? 95 : 6.5f;
+            pitch = mode == ViewMode.Location ? 15 : mode == ViewMode.Galaxy ? 30 : 50;
             FocusBody = null;
         }
 
@@ -416,12 +503,15 @@ namespace StellarIndustries.Unity.Views
             if (statusTimer > 0.25f) { statusTimer = 0; UpdateBuildingStatus(); }
             UpdateRockets(dt);
 
-            bool map = Mode == ViewMode.Map && sim != null;
-            if (locationRoot.gameObject.activeSelf == map) locationRoot.gameObject.SetActive(!map);
+            bool map = Mode == ViewMode.Map && sim != null, galaxy = Mode == ViewMode.Galaxy && sim != null;
+            if (locationRoot.gameObject.activeSelf == (map || galaxy)) locationRoot.gameObject.SetActive(!(map || galaxy));
             if (mapRoot.gameObject.activeSelf != map) mapRoot.gameObject.SetActive(map);
+            if (galaxyRoot.gameObject.activeSelf != galaxy) galaxyRoot.gameObject.SetActive(galaxy);
             if (map) UpdateMap();
+            if (galaxy) UpdateGalaxy();
 
-            camTarget = map ? (FocusBody != null && mapBodies.ContainsKey(FocusBody) ? mapBodies[FocusBody].T.position : Vector3.zero) : Vector3.zero;
+            if (galaxy) camTarget = FocusBody != null && FocusBody.StartsWith("sys:") && stars.TryGetValue(FocusBody.Substring(4), out var st) ? st.position : Vector3.zero;
+            else camTarget = map ? (FocusBody != null && mapBodies.ContainsKey(FocusBody) ? mapBodies[FocusBody].T.position : Vector3.zero) : Vector3.zero;
             distance = Mathf.Lerp(distance, targetDistance, 1 - Mathf.Exp(-6 * dt));
             var rot = Quaternion.Euler(pitch, yaw, 0);
             cam.transform.position = camTarget + rot * new Vector3(0, 0, -distance);

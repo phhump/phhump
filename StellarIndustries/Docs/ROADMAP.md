@@ -6,7 +6,7 @@
 | 2 — Moon expansion | **done** (test build) | Moon location, missions, landing, lunar resources/mining, local manufacturing (lunar shuttle), planet management UI. |
 | 3 — Automation | **partly** | Done: automated production/mining, transport routes, offline progression, priorities, automated research. Open: production statistics graphs, per-route schedules, storage hubs. |
 | 4 — Solar system | **started** | Mars (data, landing, supply, MOXIE, atmospheric processor). Open: asteroid belt (procedural asteroid compositions), Jupiter/Saturn & moons, gas harvesting, advanced spacecraft, larger tree. |
-| 5 — Interstellar | open | Procedural star systems (seeded generator producing LocationDefs), interstellar ships, colonization. |
+| 5 — Interstellar | **started** | Done: 4 real star systems / 5 confirmed exoplanets, laser-sail surveys, fusion seed ships, colonies, star map. Open: procedurally generated systems beyond ~50 ly, intra-system logistics at other stars, generation ships. |
 | 6 — Endgame | open | Dyson swarms, planetary dismantling, habitats, megastructures. |
 
 ## Next tasks (suggested order)

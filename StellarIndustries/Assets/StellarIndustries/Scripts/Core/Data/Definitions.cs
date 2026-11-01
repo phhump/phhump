@@ -136,7 +136,7 @@ namespace StellarIndustries.Core.Data
         HeavyLift, InterstellarShip, ConstructionVessel
     }
 
-    public enum PropellantType { Kerolox, Hydrolox }
+    public enum PropellantType { Kerolox, Hydrolox, FusionDHe3 }
 
     /// <summary>One rocket stage for the Tsiolkovsky rocket equation.</summary>
     [Serializable]
@@ -186,6 +186,23 @@ namespace StellarIndustries.Core.Data
 
     public enum BodyType { Star, Planet, Moon, AsteroidBelt, GasGiant, Station }
 
+    /// <summary>A real star system (positions from right ascension / declination / distance).</summary>
+    [Serializable]
+    public class StarSystemDef
+    {
+        public string Id;
+        public string Name;
+        public string Description;
+        public double DistanceLy;
+        public double RightAscensionDeg;
+        public double DeclinationDeg;
+        public string SpectralType = "";
+        public double LuminositySun = 1;
+        public string ColorHex = "#FFF4E0";
+        /// <summary>Scientific status notes (candidates, disputed planets).</summary>
+        public string Notes = "";
+    }
+
     [Serializable]
     public class LocationDef
     {
@@ -194,6 +211,10 @@ namespace StellarIndustries.Core.Data
         public string Description;
         public BodyType BodyType;
         public string ParentId = "";
+        /// <summary>Star system this body belongs to ("sol" for our solar system).</summary>
+        public string StarSystem = "sol";
+        /// <summary>Scientific status of the body (e.g. "Confirmed 2016", "Candidate").</summary>
+        public string Status = "";
         public double Gravity = 1;
         public string Atmosphere = "None";
         public double TemperatureC;
@@ -239,6 +260,8 @@ namespace StellarIndustries.Core.Data
         public string RequiredTech = "";
         /// <summary>All of these locations must be unlocked to see the mission.</summary>
         public List<string> RequiredLocations = new List<string>();
+        /// <summary>Missions that must have been completed at least once (e.g. a survey before a colony ship).</summary>
+        public List<string> RequiredMissions = new List<string>();
         public bool Repeatable = true;
         public bool AllowsCargo;
         public double RewardScience;

@@ -7,7 +7,7 @@ namespace StellarIndustries.Core.Data
     /// asset exists, and as the source for the editor exporter that converts everything to
     /// ScriptableObjects. Adding content = adding entries here or adding assets in Unity.
     /// </summary>
-    public static class DefaultContent
+    public static partial class DefaultContent
     {
         static List<ResourceAmount> R(params object[] pairs)
         {
@@ -28,6 +28,7 @@ namespace StellarIndustries.Core.Data
             AddLocations(db);
             AddMissions(db);
             AddAchievements(db);
+            AddInterstellar(db);
             db.Start = new StartDef
             {
                 StartLocation = "earth",
@@ -58,8 +59,7 @@ namespace StellarIndustries.Core.Data
             Res(db, "water", "Water", raw, "#3FA9F5", "Electrolysed into oxygen and hydrogen.");
             Res(db, "regolith", "Regolith", raw, "#9A9A9A", "Lunar soil, processed into useful minerals.");
             Res(db, "titanium_ore", "Titanium Ore", raw, "#B0C4DE", "Ilmenite, rich in lunar maria.");
-            Res(db, "helium3", "Helium-3", raw, "#E0F7FF", "Rare isotope implanted by the solar wind (~10 ppb in lunar regolith). Fusion fuel. 1 unit = 1 kg.");
-            db.Resource("helium3").MassPerUnitT = 0.001;
+            Res(db, "helium3", "Helium-3", raw, "#E0F7FF", "Rare isotope implanted by the solar wind (~10 ppb in lunar regolith). Fusion fuel.");
             Res(db, "water_ice", "Water Ice", raw, "#BFEFFF", "Frozen water from shadowed craters and polar caps.");
             Res(db, "rare_earths", "Rare Earths", raw, "#9B59B6", "Elements essential for advanced electronics.");
             Res(db, "co2", "Carbon Dioxide", raw, "#C9A27E", "Harvested from the Martian atmosphere.");

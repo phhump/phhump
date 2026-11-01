@@ -97,6 +97,7 @@ namespace StellarIndustries.Unity.Views
             var baseColor = Hex(def.ColorHex, Color.gray);
             bool earthLike = def.Atmosphere != null && def.Atmosphere.Contains("Oxygen");
             bool cratered = def.Atmosphere != null && def.Atmosphere.StartsWith("None");
+            bool gasGiant = def.BodyType == BodyType.GasGiant;
             float seed = (def.Id.GetHashCode() & 0xffff) * 0.013f;
             var px = new Color[width * height];
             for (int y = 0; y < height; y++)
@@ -109,7 +110,12 @@ namespace StellarIndustries.Unity.Views
                     float nx = Mathf.Cos(u) * 2 + seed, nz = Mathf.Sin(u) * 2 + seed;
                     float n = Fbm(nx, lat * 2.2f + nz);
                     Color c;
-                    if (earthLike)
+                    if (gasGiant)
+                    {
+                        float band = Mathf.Sin(lat * 18f + n * 3f) * 0.5f + 0.5f;
+                        c = Color.Lerp(baseColor * 0.6f, Color.Lerp(baseColor, Color.white, 0.45f), band);
+                    }
+                    else if (earthLike)
                     {
                         if (Mathf.Abs(lat) > 0.86f + n * 0.08f) c = new Color(0.93f, 0.96f, 1f);
                         else if (n > 0.53f) c = Color.Lerp(new Color(0.20f, 0.45f, 0.18f), new Color(0.55f, 0.47f, 0.30f), (n - 0.53f) * 3.5f);

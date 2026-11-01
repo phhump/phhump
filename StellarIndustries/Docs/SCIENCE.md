@@ -64,3 +64,38 @@ solar factors 1.00 / 1.33 / 0.49. Day/night cycles (two-week lunar nights) are n
 ## Not (yet) realistic, on purpose
 Compressed time; abstract item masses for factories; no orbital mechanics simulation (Δv budgets instead); no crew,
 radiation dose or life-support model; no day/night cycle.
+
+## 6. Nearby stars and exoplanets (Era 6)
+Sources (read 2026-11-01): Wikipedia *List of nearest exoplanets*, *Proxima Centauri b*, *Barnard's Star*, *Epsilon Eridani*,
+*TRAPPIST-1e*, *Alpha Centauri*, *Breakthrough Starshot*, *Project Daedalus*.
+
+Only **confirmed** planets can be colonised. Candidates and disputed objects are mentioned as notes, not as destinations.
+
+| System | Distance | Star | Playable world(s) | Status |
+|---|---|---|---|---|
+| Alpha Centauri | 4.2465 ly (Proxima) | M5.5V, 0.00155 L☉; A/B: G2V/K1V | Proxima b (≥1.055 M⊕, 0.04848 AU, T_eq 234 K, habitable zone), Proxima d (≥0.26 M⊕, 5.122 d) | b confirmed 2016, d confirmed; c disputed; α Cen Ab unconfirmed candidate |
+| Barnard's Star | 5.9629 ly | M4.0V, 0.0034 L☉ | Barnard e (≥0.193 M⊕, 0.0381 AU) | b, c, d, e confirmed 2024–2025; all inside the inner edge of the habitable zone |
+| Epsilon Eridani | 10.475 ly | K2V, 0.326 L☉ | Ægir (b): ~318 M⊕, 3.53 AU — orbital He-3 harvesting | confirmed; debris belts at 3–20 AU and 70 AU |
+| TRAPPIST-1 | 40.7 ly | ultra-cool red dwarf, 0.0566 % L☉ | TRAPPIST-1e: 0.692 M⊕, 0.920 R⊕, 0.02925 AU, 60.4 % of Earth's flux, T_eq 249.7 K | confirmed; JWST 2025: atmosphere undecided |
+
+**Consistency checks (in the tests):** the inverse-square law L/a² gives 66 % of Earth's flux for Proxima b (sources: ~65–70 %) and
+66 % for TRAPPIST-1e (source: 60.4 %, within 15 %). Note: Proxima's luminosity is 0.155 **%** of the Sun's (0.00155 L☉) — the
+value "0.155 L☉" seen in a summary would give 66× Earth's flux and contradict the published 65–70 %.
+
+**Derived values:** Proxima d's orbit 0.0288 AU from Kepler's third law (star 0.122 M☉); equilibrium temperatures
+`T = 278.6 K · flux^0.25` (zero albedo) where no published value was available; positions from right ascension / declination.
+**Assumptions:** radius from the rocky mass-radius relation R ≈ M^0.27 when only the (minimum) mass is known; surface deposits of
+all exoplanets (nobody knows their composition); 20 % lower solar yield around red dwarfs (light is mostly infrared).
+
+### Propulsion
+- **Laser-sail probes** (Breakthrough Starshot concept): gram-scale probes, 15–20 % of c, phased laser array of up to 100 GW,
+  20–30 years to Alpha Centauri. In the game: survey missions; real flight time + light-speed signal delay is shown.
+  (The real project is on hold since 2025.)
+- **Fusion seed ships** (Project Daedalus heritage): D-He3 fusion; Daedalus' exhaust velocities were 9,210–10,600 km/s, and
+  helium-3 was to come from Jupiter's atmosphere or the Moon. The game uses Isp 10⁶ s (9,807 km/s). Unlike Daedalus (flyby at 12 % c),
+  seed ships cruise at **3 % c and brake** at the target: Δv = 2 × 0.03 c ≈ 18,000 km/s, mass ratio ≈ 6.3. Proxima b takes ~142 years.
+  Chemical rockets cannot do this (tested).
+- **No supply lines** across light-years: colonies must be self-sufficient from local deposits — realistic and a design rule.
+
+*Game simplifications:* deuterium separation yield (10 water → 1 deuterium) is far higher than the natural D/H ratio would allow;
+helium-3 harvesting is enormously faster than real estimates; flight times are compressed (minutes instead of centuries).

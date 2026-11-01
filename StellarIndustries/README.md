@@ -4,7 +4,7 @@ An idle / incremental space-industry simulator for Unity. You start with one min
 one wind turbine on Earth, research rocketry, build your first rocket, reach orbit, land on the Moon,
 build a lunar industry from local resources and — with enough research — head for Mars.
 
-> **Status:** playable test build. The simulation core is compiled and covered by 25 automated
+> **Status:** playable test build. The simulation core is compiled and covered by 28 automated
 > tests (including a bot that plays from scratch to helium-3 mining on the Moon). The Unity layer
 > compiles against UnityEngine 2021.3 LTS reference assemblies, but it has **not yet been run
 > inside the Unity Editor** in this environment — please report anything that looks off.
@@ -35,7 +35,7 @@ Hotkeys: `1`–`0` switch screens, `F5` saves. Drag in the 3D view to rotate, mo
 Settings → *Developer tools* offers game speed 1–100×, "simulate offline time" and cheats for testing.
 
 ## What is implemented
-- **Data-driven economy**: 37 resources, 45 recipes, 17 building types, 25 technologies, 6 rockets, 3 worlds (Earth, Moon, Mars), 7 missions, 12 achievements/objectives — all defined as data (`DefaultContent.cs`) and exportable to ScriptableObjects.
+- **Data-driven economy**: 42 resources, 50 recipes, 18 building types, 28 technologies, 8 spacecraft (incl. laser-sail probe and fusion seed ship), 8 worlds in 5 real star systems (Earth, Moon, Mars + Proxima b/d, Barnard e, Epsilon Eridani b, TRAPPIST-1e), 16 missions, 15 achievements/objectives — all defined as data (`DefaultContent.cs`) and exportable to ScriptableObjects.
 - **Production**: inputs, outputs, cycle times, storage limits, upgrades (levels), pause, priorities, recipe switching, power consumption.
 - **Energy**: wind (only with atmosphere), coal (Earth only, burns fuel), solar (depends on location), He-3 fusion; shortages slow production proportionally.
 - **Research tree** with prerequisites, material costs, queue, cancel/refund, automated research, modifiers (production, extraction, storage, offline, mission speed, reliability).
@@ -43,6 +43,7 @@ Settings → *Developer tools* offers game speed 1–100×, "simulate offline ti
 - **Logistics**: automated, repeating transport routes between Earth and Moon/Mars.
 - **Idle/offline**: offline progression with cap (8 h base) and efficiency (50 % base), both upgradeable; clock-rollback protection; summary screen.
 - **Save system**: 3 slots, autosave, versioned format with checksum, atomic writes, rolling backup, automatic repair of unknown/invalid data, migration hook.
+- **Interstellar (Era 6, first step)**: real nearby star systems with confirmed exoplanets, laser-sail probe surveys, Daedalus-style fusion seed ships from the lunar shipyard, self-sufficient colonies, 3D star map at real sky positions.
 - **3D presentation**: procedural planets, installations visible on the surface (status blinking), launch animations with trails (pooled), solar-system map with orbits and missions in flight.
 - **Scientific realism** (see `Docs/SCIENCE.md`, sources: NASA fact sheets, Wikipedia *Delta-v budget*): staged rocket equation, real Δv budgets, cargo mass limits, Mars launch windows (synodic period), inverse-square solar power, air separation for LOX, flight-heritage reliability, real planet data in the UI.
 - **UI**: main menu with slots, 10 screens, progressive unlocking of screens, tooltips, notifications, objectives.

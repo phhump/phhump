@@ -29,6 +29,7 @@ namespace StellarIndustries.Core.Systems
             if (!state.IsUnlocked(m.Origin)) return false;
             if (m.RequiredLocations.Any(l => !state.IsUnlocked(l))) return false;
             if (!m.Repeatable && state.Completions(m.Id) > 0) return false;
+            if (m.RequiredMissions.Any(r => state.Completions(r) == 0)) return false;
             return true;
         }
 

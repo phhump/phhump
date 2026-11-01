@@ -22,10 +22,13 @@ namespace StellarIndustries.Core.Systems
         /// <summary>One propellant unit in the inventory equals this many tonnes.</summary>
         public const double PropellantUnitT = 10;
 
-        public const string KeroseneId = "rocket_fuel", OxygenId = "liquid_oxygen", HydrogenId = "hydrogen";
+        public const string KeroseneId = "rocket_fuel", OxygenId = "liquid_oxygen", HydrogenId = "hydrogen", FusionFuelId = "fusion_fuel";
+        public const double SpeedOfLightKms = 299792.458;
 
         /// <summary>Oxidizer-to-fuel mass ratios (typical engine values).</summary>
-        public static double MixtureRatio(PropellantType p) => p == PropellantType.Hydrolox ? 6.0 : 2.56;
+        public static double MixtureRatio(PropellantType p) => p == PropellantType.Hydrolox ? 6.0 : p == PropellantType.FusionDHe3 ? 0 : 2.56;
+
+        static string FuelResource(PropellantType p) => p == PropellantType.Hydrolox ? HydrogenId : p == PropellantType.FusionDHe3 ? FusionFuelId : KeroseneId;
 
         public static double MassPerUnit(ResourceDef r)
         {
@@ -88,8 +91,8 @@ namespace StellarIndustries.Core.Systems
                 {
                     double ratio = MixtureRatio(s.Propellant);
                     double fuel = s.PropellantMassT / (1 + ratio), ox = s.PropellantMassT - fuel;
-                    AddT(s.Propellant == PropellantType.Hydrolox ? HydrogenId : KeroseneId, fuel);
-                    AddT(OxygenId, ox);
+                    AddT(FuelResource(s.Propellant), fuel);
+                    if (ox > 0) AddT(OxygenId, ox);
                 }
             return tonnes.Select(kv => new ResourceAmount(kv.Key, Math.Max(1, Math.Ceiling(kv.Value / PropellantUnitT - 1e-9)))).ToList();
         }
@@ -110,6 +113,15 @@ namespace StellarIndustries.Core.Systems
             double t = gameTime % m.SynodicPeriodSeconds;
             return t < 1e-6 ? 0 : m.SynodicPeriodSeconds - t;
         }
+
+        /// <summary>Irradiance (W/m²) at distance a (AU) from a star of luminosity L (in solar units): inverse-square law.</summary>
+        public static double Irradiance(double luminositySun, double distanceAU) => SolarConstant * luminositySun / (distanceAU * distanceAU);
+
+        /// <summary>Zero-albedo equilibrium temperature in kelvin for a given flux relative to Earth.</summary>
+        public static double EquilibriumTempK(double fluxEarth) => 278.6 * Math.Pow(Math.Max(0, fluxEarth), 0.25);
+
+        /// <summary>Delta-v (km/s) to accelerate to and brake from a cruise speed given as a fraction of c.</summary>
+        public static double InterstellarDeltaV(double cruiseFractionC) => 2 * cruiseFractionC * SpeedOfLightKms;
 
         /// <summary>Solar output factor relative to Earth's surface (1.0).</summary>
         public static double SolarFactor(LocationDef l)
