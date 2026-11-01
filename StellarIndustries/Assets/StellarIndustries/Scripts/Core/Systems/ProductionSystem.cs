@@ -130,7 +130,8 @@ namespace StellarIndustries.Core.Systems
                 double richness = 1, mult = prodMult;
                 if (!string.IsNullOrEmpty(recipe.RequiredDeposit))
                 {
-                    var dep = locDef.Deposits.Find(d => d.ResourceId == recipe.RequiredDeposit);
+                    DepositDef dep = null; // plain loop: no closure allocation per building per tick
+                    for (int di = 0; di < locDef.Deposits.Count; di++) if (locDef.Deposits[di].ResourceId == recipe.RequiredDeposit) { dep = locDef.Deposits[di]; break; }
                     if (dep == null || (Placement != null && !Placement.OnDeposit(b, recipe.RequiredDeposit))) { b.Status = BuildingStatus.NoDeposit; b.EffectiveSpeed = 0; continue; }
                     richness = dep.Richness;
                     mult = extrMult;

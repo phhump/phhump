@@ -49,6 +49,7 @@ namespace StellarIndustries.Unity.Surface
             var accent = Mat("accent_" + def.Id, VisualFactory.Hex(def.ColorHex, Color.gray), 0.35f);
             // foundation slab (extends below ground to hide slopes)
             P(PrimitiveType.Cylinder, t, new Vector3(0, -1.2f, 0), new Vector3(f, 1.5f, f), Concrete);
+            var foundation = t.GetChild(0).GetComponent<Renderer>();
             switch (def.Id)
             {
                 case "wind_turbine":
@@ -162,7 +163,33 @@ namespace StellarIndustries.Unity.Surface
                     P(PrimitiveType.Cube, t, new Vector3(0, 2.5f, 0), new Vector3(f * 0.7f, 5, f * 0.6f), accent);
                     break;
             }
+            AddLod(root, foundation, accent, f);
+            VisualFactory.Shadows(root);
             return root;
+        }
+
+        /// <summary>
+        /// Two detail levels: the full model up close, one simple shape (same silhouette size and colour) far away,
+        /// culled when tiny. Cuts draw calls for big bases dramatically; thresholds follow the quality preset.
+        /// </summary>
+        static void AddLod(GameObject root, Renderer foundation, Material accent, float f)
+        {
+            var detailed = root.GetComponentsInChildren<Renderer>(true);
+            var b = new Bounds(root.transform.position, Vector3.zero);
+            foreach (var r in detailed) if (r != foundation) b.Encapsulate(r.bounds);
+            float h = Mathf.Max(1, b.max.y - root.transform.position.y);
+            bool tall = h > 2.5f * Mathf.Max(b.size.x, b.size.z);
+            var simple = tall
+                ? P(PrimitiveType.Cylinder, root.transform, new Vector3(0, h / 2, 0), new Vector3(Mathf.Max(1, b.size.x * 0.5f), h / 2, Mathf.Max(1, b.size.z * 0.5f)), accent)
+                : P(PrimitiveType.Cube, root.transform, new Vector3(0, h / 2, 0), new Vector3(Mathf.Max(1, b.size.x * 0.9f), h, Mathf.Max(1, b.size.z * 0.9f)), accent);
+            simple.name = "LOD1";
+            var lod = root.AddComponent<LODGroup>();
+            lod.SetLODs(new[]
+            {
+                new LOD(Performance.GraphicsQuality.LodDetailThreshold, detailed),
+                new LOD(Performance.GraphicsQuality.LodCullThreshold, new[] { simple.GetComponent<Renderer>(), foundation }),
+            });
+            lod.RecalculateBounds();
         }
 
         /// <summary>Switches every renderer of a model to one (transparent) preview material.</summary>

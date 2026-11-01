@@ -120,6 +120,9 @@ namespace StellarIndustries.Unity.Views
             RenderSettings.skybox = null;
         }
 
+        /// <summary>Rebuilds visuals after a graphics preset change (sphere detail, cloud layer).</summary>
+        public void RefreshQuality() { shownLocation = null; mapDirty = true; galaxyDirty = true; }
+
         void OnSimulationStarted(GameSimulation s)
         {
             sim = s;
@@ -168,15 +171,15 @@ namespace StellarIndustries.Unity.Views
             var tilt = new GameObject("Axial tilt").transform;
             tilt.SetParent(planetRig.transform, false);
             tilt.localRotation = Quaternion.Euler(0, 0, -(float)def.AxialTiltDeg);
-            planet = VisualFactory.Primitive(PrimitiveType.Sphere, "Planet " + def.Name, tilt);
+            planet = MeshFactory.Smooth(VisualFactory.Primitive(PrimitiveType.Sphere, "Planet " + def.Name, tilt), Performance.GraphicsQuality.SphereSegments);
             planet.transform.localScale = Vector3.one * 3f;
             planet.GetComponent<Renderer>().sharedMaterial = VisualFactory.PlanetMaterial(def);
             float spin = SpinSpeed(def);
             planet.AddComponent<Spin>().DegreesPerSecond = spin;
             var cloudTex = VisualFactory.LoadTexture(def.CloudTexture);
-            if (cloudTex != null)
+            if (cloudTex != null && Performance.GraphicsQuality.CloudLayer)
             {
-                var clouds = VisualFactory.Primitive(PrimitiveType.Sphere, "Clouds", tilt);
+                var clouds = MeshFactory.Smooth(VisualFactory.Primitive(PrimitiveType.Sphere, "Clouds", tilt), Performance.GraphicsQuality.SphereSegments);
                 clouds.transform.localScale = Vector3.one * 3.03f;
                 var cm = VisualFactory.Lit(Color.white, 0f, cloudTex);
                 VisualFactory.MakeTransparent(cm);
@@ -329,7 +332,7 @@ namespace StellarIndustries.Unity.Views
             mapDirty = false;
             foreach (Transform c in mapRoot) Destroy(c.gameObject);
             mapBodies.Clear();
-            var sunGo = VisualFactory.Primitive(PrimitiveType.Sphere, "Sun", mapRoot);
+            var sunGo = MeshFactory.Smooth(VisualFactory.Primitive(PrimitiveType.Sphere, "Sun", mapRoot), Performance.GraphicsQuality.SphereSegments / 2);
             sunGo.transform.localScale = Vector3.one * 7f;
             var sunMat = VisualFactory.Unlit(new Color(1f, 0.92f, 0.75f));
             var sunTex = VisualFactory.LoadTexture("sun");
@@ -344,7 +347,7 @@ namespace StellarIndustries.Unity.Views
                 pivot.SetParent(mapRoot, false);
                 var orbitColor = sim != null && sim.State.IsUnlocked(def.Id) ? new Color(0.17f, 0.85f, 1f, 0.35f) : new Color(0.5f, 0.55f, 0.6f, 0.18f);
                 VisualFactory.Circle(pivot, (float)def.OrbitRadius, orbitColor, 128, string.IsNullOrEmpty(def.ParentId) ? 0.12f : 0.04f);
-                var body = VisualFactory.Primitive(PrimitiveType.Sphere, def.Name, mapRoot, true);
+                var body = MeshFactory.Smooth(VisualFactory.Primitive(PrimitiveType.Sphere, def.Name, mapRoot, true), Performance.GraphicsQuality.SphereSegments / 2);
                 body.transform.localScale = Vector3.one * (float)(def.VisualRadius * 2);
                 body.AddComponent<BodyTag>().LocationId = def.Id;
                 var mat = VisualFactory.PlanetMaterial(def);

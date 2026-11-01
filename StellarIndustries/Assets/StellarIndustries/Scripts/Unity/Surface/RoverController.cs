@@ -14,6 +14,7 @@ namespace StellarIndustries.Unity.Surface
         public bool Driven;
         readonly Transform[] wheels = new Transform[6];
         Light[] lights;
+        float trackDist;
 
         public void Init(SurfaceWorld w, Vector3 pos)
         {
@@ -70,6 +71,23 @@ namespace StellarIndustries.Unity.Surface
             if (!Blocked(p)) transform.position = new Vector3(p.x, transform.position.y, p.z); else speed = 0;
             Align(dt);
             foreach (var w in wheels) w.Rotate(speed * dt / 0.55f * Mathf.Rad2Deg, 0, 0, Space.Self);
+            float sp = Mathf.Abs(speed);
+            if (sp > 1.5f)
+            {
+                // Rooster tails: on the Moon they arc in perfect parabolas and drop straight back (no air).
+                var back = -transform.forward;
+                foreach (var i in new[] { 0, 1 })
+                {
+                    var wheel = wheels[i].position;
+                    world.Dust?.Burst(wheel, back * sp * 0.35f + Vector3.up * (1.2f + sp * 0.18f), 0.8f, Mathf.CeilToInt(sp * 0.25f));
+                }
+                trackDist += sp * dt;
+                if (trackDist > 1.4f)
+                {
+                    trackDist = 0;
+                    foreach (var i in new[] { 0, 1 }) world.Prints?.Stamp(wheels[i].position, transform.eulerAngles.y, new Vector2(0.5f, 1.5f));
+                }
+            }
             foreach (var l in lights) l.intensity = Driven ? 2.2f : 0;
         }
 

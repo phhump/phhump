@@ -27,6 +27,13 @@ namespace StellarIndustries.Unity.Surface
         public BuildMode Build { get; private set; }
         public readonly Dictionary<int, GameObject> Structures = new Dictionary<int, GameObject>();
         public float GravityMs2 => Def == null ? 9.81f : Def.BodyType == BodyType.GasGiant ? 9.81f : (float)(Def.Gravity * 9.80665);
+        /// <summary>No usable atmosphere: no rotors, no drag, black sky.</summary>
+        public bool Airless => Def != null && VisualFactory.Hex(Def.SkyColorHex, Color.black).maxColorComponent < 0.08f;
+        public DustSystem Dust { get; private set; }
+        public Footprints Prints { get; private set; }
+        public DroneSwarm Drones { get; private set; }
+        Transform decor;
+        LightShadows oldShadows;
 
         Transform root;
         bool dirty;
@@ -116,7 +123,7 @@ namespace StellarIndustries.Unity.Surface
         }
 
         // ------------------------------------------------------------------ lifecycle
-        public void Enter(GameSimulation sim, string locationId)
+        public void Enter(GameSimulation sim, string locationId, Vector3? spawn = null)
         {
             if (Active) Exit();
             Sim = sim; LocationId = locationId; Def = sim.Db.Location(locationId);
@@ -129,13 +136,15 @@ namespace StellarIndustries.Unity.Surface
             for (int i = 0; i < count; i++) craters.Add((new Vector2((float)(rnd.NextDouble() * 2 - 1) * (half + 300), (float)(rnd.NextDouble() * 2 - 1) * (half + 300)), 5 + (float)System.Math.Pow(rnd.NextDouble(), 2.2) * 45));
 
             root = new GameObject("Surface " + Def.Name).transform;
+            decor = new GameObject("Static decor").transform;
+            decor.SetParent(root, false);
             BuildTerrain(half);
             BuildSky();
             BuildDepositFields();
             BuildLandingPad();
             Engineer = new GameObject("Engineer").AddComponent<EngineerController>();
             Engineer.transform.SetParent(root, false);
-            Engineer.Init(this, new Vector3(0, 0.2f, -8));
+            Engineer.Init(this, spawn ?? new Vector3(0, 0.2f, -8));
             Rover = new GameObject("Rover").AddComponent<RoverController>();
             Rover.transform.SetParent(root, false);
             Rover.Init(this, new Vector3(9, 0, -4));
@@ -145,6 +154,17 @@ namespace StellarIndustries.Unity.Surface
             Build = new GameObject("Build mode").AddComponent<BuildMode>();
             Build.transform.SetParent(root, false);
             Build.Init(this);
+            Dust = new GameObject("Dust").AddComponent<DustSystem>();
+            Dust.transform.SetParent(root, false);
+            Dust.Init(this);
+            Prints = new GameObject("Footprints").AddComponent<Footprints>();
+            Prints.transform.SetParent(root, false);
+            Prints.Init(this);
+            Drones = new GameObject("Drones").AddComponent<DroneSwarm>();
+            Drones.transform.SetParent(root, false);
+            Drones.Init(this);
+            CombineStatic(decor.gameObject);
+            GetComponent<Performance.PerformanceMonitor>()?.Grace();
             sim.Events.BuildingsChanged += OnBuildingsChanged;
             sim.Events.RocketLaunched += OnRocketLaunched;
             Active = true;
@@ -172,30 +192,36 @@ namespace StellarIndustries.Unity.Surface
             var ground = VisualFactory.Lit(Color.white, 0.08f, GroundTexture(VisualFactory.Hex(Def.GroundColorHex, Color.gray)));
             var inner = new GameObject("Terrain");
             inner.transform.SetParent(root, false);
-            var mesh = TerrainMesh(half + 80, 200, 0, 1e9f);
+            var mesh = TerrainMesh(half + 80, Performance.GraphicsQuality.TerrainGrid, 0, 1e9f);
             inner.AddComponent<MeshFilter>().sharedMesh = mesh;
-            inner.AddComponent<MeshRenderer>().sharedMaterial = ground;
+            var terrainRenderer = inner.AddComponent<MeshRenderer>();
+            terrainRenderer.sharedMaterial = ground;
+            terrainRenderer.receiveShadows = Performance.GraphicsQuality.Shadows;
+            terrainRenderer.shadowCastingMode = Performance.GraphicsQuality.SoftShadows ? ShadowCastingMode.On : ShadowCastingMode.Off; // crater rims self-shadow on High+
             inner.AddComponent<MeshCollider>().sharedMesh = mesh;
             // Horizon ring: coarse, slightly lower, reaches the real horizon distance (~2.4 km on the Moon, ~4.7 km on Earth for eye height).
             var outer = new GameObject("Horizon terrain");
             outer.transform.SetParent(root, false);
-            outer.AddComponent<MeshFilter>().sharedMesh = TerrainMesh(5000, 120, -0.6f, half + 60);
-            outer.AddComponent<MeshRenderer>().sharedMaterial = ground;
+            outer.AddComponent<MeshFilter>().sharedMesh = TerrainMesh(5000, Performance.GraphicsQuality.HorizonGrid, -0.6f, half + 60);
+            var outerR = outer.AddComponent<MeshRenderer>();
+            outerR.sharedMaterial = ground;
+            outerR.shadowCastingMode = ShadowCastingMode.Off;
             // Survey stakes along the buildable border.
             var stake = StructureFactory.Mat("stake", new Color(1f, 0.55f, 0.15f), 0.2f);
             for (float p = -half; p <= half; p += 50)
                 foreach (var v in new[] { new Vector2(p, -half), new Vector2(p, half), new Vector2(-half, p), new Vector2(half, p) })
-                    StructureFactory.P(PrimitiveType.Cube, root, new Vector3(v.x, HeightAt(v.x, v.y) + 0.8f, v.y), new Vector3(0.25f, 1.6f, 0.25f), stake);
+                    StructureFactory.P(PrimitiveType.Cube, decor, new Vector3(v.x, HeightAt(v.x, v.y) + 0.8f, v.y), new Vector3(0.25f, 1.6f, 0.25f), stake);
             // Scattered rocks (airless worlds get more).
             var rockMat = StructureFactory.Mat("rock_" + Def.Id, VisualFactory.Hex(Def.GroundColorHex, Color.gray) * 0.75f, 0.05f);
             var rnd = new System.Random((int)(seed >> 3));
-            int rocks = Def.BodyType == BodyType.GasGiant ? 0 : (int)(120 + Def.CraterDensity * 200);
+            int rocks = Def.BodyType == BodyType.GasGiant ? 0 : (int)((120 + Def.CraterDensity * 200) * Performance.GraphicsQuality.DecorationDensity);
             for (int i = 0; i < rocks; i++)
             {
                 float x = (float)(rnd.NextDouble() * 2 - 1) * (half + 60), z = (float)(rnd.NextDouble() * 2 - 1) * (half + 60);
                 if (x * x + z * z < 40 * 40) continue;
                 float s = 0.3f + (float)System.Math.Pow(rnd.NextDouble(), 3) * 2.2f;
-                StructureFactory.P(PrimitiveType.Sphere, root, new Vector3(x, HeightAt(x, z) + s * 0.15f, z), new Vector3(s * 1.3f, s * 0.7f, s), rockMat, new Vector3(0, (float)rnd.NextDouble() * 360, 0));
+                var rock = StructureFactory.P(PrimitiveType.Sphere, decor, new Vector3(x, HeightAt(x, z) + s * 0.15f, z), new Vector3(s * 1.3f, s * 0.7f, s), rockMat, new Vector3(0, (float)rnd.NextDouble() * 360, 0));
+                if (Performance.GraphicsQuality.SoftShadows && s > 1) rock.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.On;
             }
         }
 
@@ -216,7 +242,9 @@ namespace StellarIndustries.Unity.Surface
             var starColor = Color.Lerp(VisualFactory.Hex(star?.ColorHex ?? "#FFF4E0", Color.white), Color.white, 0.55f);
             if (sun != null)
             {
-                oldSunRot = sun.transform.rotation; oldSunIntensity = sun.intensity; oldSunColor = sun.color;
+                oldSunRot = sun.transform.rotation; oldSunIntensity = sun.intensity; oldSunColor = sun.color; oldShadows = sun.shadows;
+                sun.shadows = Performance.GraphicsQuality.SoftShadows ? LightShadows.Soft : Performance.GraphicsQuality.Shadows ? LightShadows.Hard : LightShadows.None;
+                sun.shadowStrength = Airless ? 0.95f : 0.75f; // no sky light fills shadows on airless worlds
                 sun.transform.rotation = Quaternion.Euler(38, -35, 0);
                 sun.intensity = Mathf.Clamp((float)SpacePhysics.SolarFactor(Def), 0.55f, 1.5f) * (airless ? 1.25f : 1.05f);
                 sun.color = starColor;
@@ -248,7 +276,7 @@ namespace StellarIndustries.Unity.Surface
             if (Def.Id == "moon")
             {
                 var earthDef = Sim.Db.Location("earth");
-                var earth = VisualFactory.Primitive(PrimitiveType.Sphere, "Earth in the sky", anchor);
+                var earth = MeshFactory.Smooth(VisualFactory.Primitive(PrimitiveType.Sphere, "Earth in the sky", anchor), Performance.GraphicsQuality.SphereSegments);
                 earth.transform.localPosition = Quaternion.Euler(-42, 120, 0) * Vector3.forward * 3500;
                 earth.transform.localScale = Vector3.one * (3500 * Mathf.Tan(1.9f * Mathf.Deg2Rad));
                 earth.GetComponent<Renderer>().sharedMaterial = VisualFactory.PlanetMaterial(earthDef);
@@ -262,7 +290,7 @@ namespace StellarIndustries.Unity.Surface
             if (cam != null) { cam.backgroundColor = oldBg; cam.clearFlags = oldClear; }
             RenderSettings.ambientLight = oldAmbient; RenderSettings.ambientMode = oldAmbientMode;
             RenderSettings.fog = oldFog; RenderSettings.fogColor = oldFogColor; RenderSettings.fogDensity = oldFogDensity;
-            if (sun != null) { sun.transform.rotation = oldSunRot; sun.intensity = oldSunIntensity; sun.color = oldSunColor; }
+            if (sun != null) { sun.transform.rotation = oldSunRot; sun.intensity = oldSunIntensity; sun.color = oldSunColor; sun.shadows = oldShadows; }
         }
 
         void BuildDepositFields()
@@ -290,11 +318,12 @@ namespace StellarIndustries.Unity.Surface
                 {
                     var ore = StructureFactory.Mat("orerock_" + p.ResourceId, c, 0.25f);
                     var rnd = new System.Random(p.ResourceId.GetHashCode() ^ (int)p.X);
-                    for (int i = 0; i < 14; i++)
+                    int ores = Mathf.Max(4, (int)(14 * Performance.GraphicsQuality.DecorationDensity));
+                    for (int i = 0; i < ores; i++)
                     {
                         float a = (float)rnd.NextDouble() * 6.28f, d = (float)System.Math.Sqrt(rnd.NextDouble()) * (float)p.Radius * 0.9f;
                         float x = (float)p.X + Mathf.Cos(a) * d, z = (float)p.Z + Mathf.Sin(a) * d, s = 0.5f + (float)rnd.NextDouble() * 1.2f;
-                        StructureFactory.P(PrimitiveType.Sphere, go.transform, new Vector3(x, HeightAt(x, z) + s * 0.2f, z), new Vector3(s * 1.4f, s * 0.8f, s), ore);
+                        StructureFactory.P(PrimitiveType.Sphere, decor, new Vector3(x, HeightAt(x, z) + s * 0.2f, z), new Vector3(s * 1.4f, s * 0.8f, s), ore);
                     }
                 }
             }
@@ -360,7 +389,13 @@ namespace StellarIndustries.Unity.Surface
                 go.layer = 2;
                 var light = VisualFactory.Billboard("Status", go.transform, VisualFactory.GlowTexture, Color.green, 2.4f);
                 light.transform.localPosition = new Vector3(0, StatusHeight(def), 0);
-                go.AddComponent<StructureTag>().Uid = b.Uid;
+                var tag = go.AddComponent<StructureTag>();
+                tag.Uid = b.Uid;
+                // Cache components once: the status refresh runs 4x per second for every building and must not allocate.
+                tag.StatusRenderer = light.GetComponent<Renderer>();
+                tag.Spins = go.GetComponentsInChildren<Views.Spin>();
+                tag.Nods = go.GetComponentsInChildren<Nod>();
+                tag.Rocket = go.transform.Find("StandingRocket");
                 Structures[b.Uid] = go;
             }
             UpdateStatus();
@@ -371,21 +406,25 @@ namespace StellarIndustries.Unity.Surface
         void UpdateStatus()
         {
             bool blink = Mathf.Repeat(Time.time, 1) < 0.5f;
+            bool rocketReady = HasRocketReady();
             foreach (var kv in Structures)
             {
                 var b = Sim.Construction.Find(kv.Key);
                 if (b == null) continue;
                 var tag = kv.Value.GetComponent<StructureTag>();
+                if (tag == null) continue;
                 Color c = b.Status == BuildingStatus.Working ? new Color(0.3f, 1f, 0.55f) : b.Status == BuildingStatus.Paused || b.Status == BuildingStatus.Idle ? new Color(0.5f, 0.55f, 0.6f)
                         : b.Status == BuildingStatus.NoPower || b.Status == BuildingStatus.NoDeposit || b.Status == BuildingStatus.NoFuel ? new Color(1f, 0.3f, 0.3f) : new Color(1f, 0.7f, 0.2f);
                 if (b.Status != BuildingStatus.Working && b.Status != BuildingStatus.Paused && !blink) c *= 0.4f;
-                var status = kv.Value.transform.Find("Status");
-                if (status != null) status.GetComponent<Renderer>().sharedMaterial.color = c;
+                if (tag.StatusRenderer != null) tag.StatusRenderer.sharedMaterial.color = c;
                 bool running = b.Status == BuildingStatus.Working || b.Status == BuildingStatus.LowPower;
-                foreach (var s in kv.Value.GetComponentsInChildren<Views.Spin>()) s.enabled = running;
-                foreach (var n in kv.Value.GetComponentsInChildren<Nod>()) n.Active = running;
-                var rocket = kv.Value.transform.Find("StandingRocket");
-                if (rocket != null) rocket.gameObject.SetActive(HasRocketReady());
+                if (running != tag.Running || tag.Status != b.Status)
+                {
+                    foreach (var s in tag.Spins) s.enabled = running;
+                    foreach (var n in tag.Nods) n.Active = running;
+                    tag.Running = running;
+                }
+                if (tag.Rocket != null && tag.Rocket.gameObject.activeSelf != rocketReady) tag.Rocket.gameObject.SetActive(rocketReady);
                 tag.Status = b.Status;
             }
         }
@@ -398,6 +437,7 @@ namespace StellarIndustries.Unity.Surface
             var pad = Sim.State.Buildings.FirstOrDefault(b => b.LocationId == LocationId && b.DefId == "rocket_assembly" && b.Placed);
             var pos = pad != null ? GroundPoint(pad.PosX, pad.PosZ) : new Vector3(0, 0, 40);
             launches.Add(RocketLaunchFx.Spawn(root, pos, GravityMs2));
+            for (int i = 0; i < 6; i++) Dust?.Burst(pos + Random.insideUnitSphere * 6, new Vector3(Random.Range(-8f, 8f), 2, Random.Range(-8f, 8f)), 4, 40);
         }
 
         public BuildingInstance NearestBuilding(Vector3 p, float maxDist, out float dist)
@@ -498,6 +538,16 @@ namespace StellarIndustries.Unity.Surface
             for (int i = launches.Count - 1; i >= 0; i--) if (launches[i] == null) launches.RemoveAt(i);
         }
 
+        /// <summary>
+        /// Static batching for the many decoration objects (rocks, stakes, ore boulders): hundreds of renderers become a
+        /// few draw calls. Only runs when every mesh is CPU-readable (Unity requires it), otherwise instancing still applies.
+        /// </summary>
+        static void CombineStatic(GameObject go)
+        {
+            foreach (var mf in go.GetComponentsInChildren<MeshFilter>()) if (mf.sharedMesh == null || !mf.sharedMesh.isReadable) return;
+            StaticBatchingUtility.Combine(go);
+        }
+
         void LateUpdate() { if (Active) SurfaceInput.EndFrame(); }
         public void SurfaceInput_Feed(Event e, float scale) { if (Active) SurfaceInput.Feed(e, scale); }
         public void SurfaceInput_SetBlocked(bool blocked) => SurfaceInput.Blocked = blocked;
@@ -505,7 +555,11 @@ namespace StellarIndustries.Unity.Surface
         void OnApplicationFocus(bool focus) { if (!focus) SurfaceInput.ClearAll(); }
     }
 
-    public class StructureTag : MonoBehaviour { public int Uid; public BuildingStatus Status; }
+    public class StructureTag : MonoBehaviour
+    {
+        public int Uid; public BuildingStatus Status; public bool Running = true;
+        public Renderer StatusRenderer; public Views.Spin[] Spins; public Nod[] Nods; public Transform Rocket;
+    }
 
     /// <summary>Launch: the rocket climbs from the pad with a flame and trail; acceleration is independent of local gravity, but liftoff is visibly easier in low g.</summary>
     public class RocketLaunchFx : MonoBehaviour

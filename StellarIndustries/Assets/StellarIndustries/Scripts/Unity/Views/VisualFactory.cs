@@ -31,7 +31,7 @@ namespace StellarIndustries.Unity.Views
 
         public static Material Lit(Color c, float smoothness = 0.15f, Texture tex = null)
         {
-            var m = new Material(LitShader) { color = c };
+            var m = new Material(LitShader) { color = c, enableInstancing = true }; // GPU instancing: identical primitives draw in one call
             if (m.HasProperty("_Glossiness")) m.SetFloat("_Glossiness", smoothness);
             if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", smoothness);
             if (tex != null)
@@ -42,7 +42,7 @@ namespace StellarIndustries.Unity.Views
             return m;
         }
 
-        public static Material Unlit(Color c) => new Material(UnlitShader) { color = c };
+        public static Material Unlit(Color c) => new Material(UnlitShader) { color = c, enableInstancing = true };
 
         // ------------------------------------------------------------------ HD assets
         static readonly System.Collections.Generic.Dictionary<string, Texture2D> texCache = new System.Collections.Generic.Dictionary<string, Texture2D>();
@@ -163,6 +163,17 @@ namespace StellarIndustries.Unity.Views
             r.shadowCastingMode = ShadowCastingMode.Off;
             r.receiveShadows = false;
             return go;
+        }
+
+        /// <summary>Enables shadow casting/receiving on a hierarchy when the quality preset allows it.</summary>
+        public static void Shadows(GameObject go, bool cast = true)
+        {
+            bool on = Performance.GraphicsQuality.Shadows;
+            foreach (var r in go.GetComponentsInChildren<Renderer>())
+            {
+                r.shadowCastingMode = on && cast ? ShadowCastingMode.On : ShadowCastingMode.Off;
+                r.receiveShadows = on;
+            }
         }
 
         /// <summary>Simple shapes for building categories. Returns the root object.</summary>

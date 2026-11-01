@@ -9,6 +9,7 @@ public static class Program
     public static int Main(string[] args)
     {
         if (args.Contains("--bot-trace")) return BotTrace();
+        if (args.Contains("--bench")) return Bench();
         int ei = Array.IndexOf(args, "--export-preview");
         if (ei >= 0 && ei + 1 < args.Length) return PreviewExport.Run(args[ei + 1]);
         Console.WriteLine("Stellar Industries - headless simulation tests");
@@ -17,6 +18,34 @@ public static class Program
         Console.WriteLine("Bot: " + SimulationTestSuite.LastBotReport);
         Console.WriteLine($"{results.Count - failed}/{results.Count} passed");
         return failed == 0 ? 0 : 1;
+    }
+
+    /// <summary>Performance benchmark: tick cost and garbage per tick for large bases.</summary>
+    static int Bench()
+    {
+        foreach (int n in new[] { 100, 1000, 5000 })
+        {
+            var sim = GameSimulation.NewGame(DefaultContent.Create(), "Bench", 1);
+            foreach (var t in sim.Db.Techs) sim.Research.Complete(t.Id);
+            sim.Missions.UnlockLocation("moon");
+            var defs = new[] { "surface_mine", "smelter", "component_factory", "research_lab", "wind_turbine", "chemical_plant" };
+            var sw0 = System.Diagnostics.Stopwatch.StartNew();
+            for (int i = 0; i < n; i++)
+            {
+                var d = sim.Db.Building(defs[i % defs.Length]);
+                sim.Construction.Place(d, i % 3 == 0 ? "moon" : "earth");
+            }
+            double placeMs = sw0.Elapsed.TotalMilliseconds;
+            for (int i = 0; i < 50; i++) sim.Tick(0.1);
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            int ticks = 600;
+            for (int i = 0; i < ticks; i++) sim.Tick(1.0 / 60);
+            sw.Stop();
+            long alloc = GC.GetAllocatedBytesForCurrentThread() - before;
+            Console.WriteLine($"{n,5} buildings: place {placeMs,8:0} ms total | tick {sw.Elapsed.TotalMilliseconds / ticks,6:0.000} ms | {alloc / ticks,7:0} bytes garbage per tick");
+        }
+        return 0;
     }
 
     /// <summary>Balancing aid: runs the progression bot and prints its state every 15 simulated minutes.</summary>

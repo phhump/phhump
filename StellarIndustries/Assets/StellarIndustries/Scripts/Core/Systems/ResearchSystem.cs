@@ -83,6 +83,8 @@ namespace StellarIndustries.Core.Systems
             return true;
         }
 
+        double autoTimer = 1;
+
         public double Rate(TechDef t) => Math.Max(db.Start.BaseResearchRate, t.ScienceCost / 20.0) * mods.Multiplier(ModifierType.ResearchSpeed);
 
         public double Fraction => string.IsNullOrEmpty(R.ActiveTech) ? 0 : R.ActiveProgress / Math.Max(1e-9, db.Tech(R.ActiveTech)?.ScienceCost ?? 1);
@@ -97,8 +99,10 @@ namespace StellarIndustries.Core.Systems
                     if (Status(id) == TechStatus.Completed) { R.Queue.RemoveAt(i--); continue; }
                     if (TryActivate(id)) { R.Queue.RemoveAt(i); break; }
                 }
-                if (string.IsNullOrEmpty(R.ActiveTech) && R.AutoResearch && state.HasFeature(Features.AutoResearch))
+                autoTimer += dt;
+                if (string.IsNullOrEmpty(R.ActiveTech) && R.AutoResearch && state.HasFeature(Features.AutoResearch) && autoTimer >= 1)
                 {
+                    autoTimer = 0; // the LINQ search below allocates: run it once per second, not every frame
                     var next = db.Techs.Where(t => Status(t.Id) == TechStatus.Available && inv.Has(Hq, t.MaterialCost))
                                        .OrderBy(t => t.ScienceCost).FirstOrDefault();
                     if (next != null) TryActivate(next.Id);

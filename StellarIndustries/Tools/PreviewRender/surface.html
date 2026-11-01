@@ -101,6 +101,19 @@ for(let i=0;i<6;i++)cyl(rov,i%2?1.45:-1.45,.55,-1.6+(i>>1)*1.6,1.1,.44,mats.dark
 const sunSp=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex(),color:0xfff3d8,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:false}));sunSp.scale.set(260,260,1);sunSp.position.copy(sunDir).multiplyScalar(3800);scene.add(sunSp);
 if(airless){const mw=await tl.loadAsync(T+'milky_way.jpg');mw.colorSpace=THREE.SRGBColorSpace;const sk=new THREE.Mesh(new THREE.SphereGeometry(4500,64,32),new THREE.MeshBasicMaterial({map:mw,side:THREE.BackSide,color:0x8c94a8,fog:false}));scene.add(sk)}
 let earthSky;if(isMoon){const et=await tl.loadAsync(T+'earth_day.jpg');et.colorSpace=THREE.SRGBColorSpace;earthSky=new THREE.Mesh(new THREE.SphereGeometry(1,64,48),new THREE.MeshStandardMaterial({map:et,roughness:.9,emissive:0x000000}));earthSky.scale.setScalar(3500*Math.tan(1.9*Math.PI/180)*1.0);scene.add(earthSky)}
+// --- drones & dust (mirror DroneSwarm / DustSystem: real gravity, rotors only with air) ---
+const g=S.gravity*9.80665;
+function quad(x,y,z,yaw,crate){const d=new THREE.Group();box(d,0,0,0,.9,.3,.9,mats.white);box(d,0,.05,.5,.3,.12,.1,M('#ff801f',.5,0));
+  for(let i=0;i<4;i++){const a=Math.PI/4+i*Math.PI/2;box(d,Math.sin(a)*.4,0,Math.cos(a)*.4,.1,.08,.8,mats.dark,a);const r=new THREE.Mesh(new THREE.CircleGeometry(.5,24),new THREE.MeshBasicMaterial({color:0x222222,transparent:true,opacity:.35,side:THREE.DoubleSide}));r.rotation.x=-Math.PI/2;r.position.set(Math.sin(a)*.8,.2,Math.cos(a)*.8);d.add(r)}
+  if(crate)box(d,0,-.45,0,.55,.55,.55,M(crate,.6,0));d.position.set(x,y,z);d.rotation.set(.18,yaw,0);d.scale.setScalar(1.4);scene.add(d);return d}
+function hopper(x,y,z,flame){const d=new THREE.Group();sph(d,0,0,0,1.4,.8,1.4,mats.white);for(let i=0;i<3;i++){const a=i*2.094;cyl(d,Math.sin(a)*.6,-.5,Math.cos(a)*.6,.08,.9,mats.dark)}box(d,0,-.2,0,.55,.55,.55,M('#E0F7FF',.6,0));
+  if(flame){const f=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex(),color:0x99d9ff,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));f.scale.set(2.2,2.2,1);f.position.set(0,-1.1,0);d.add(f)}
+  d.position.set(x,y,z);d.scale.setScalar(1.4);scene.add(d);return d}
+const dustMat=new THREE.PointsMaterial({color:C(S.ground).multiplyScalar(1.6),size:.07,map:glowTex(),transparent:true,opacity:.95,depthWrite:false,alphaTest:.05});
+function dustArc(origin,vel,n,spread){const pts=[];for(let i=0;i<n;i++){const v=vel.clone().add(new THREE.Vector3((rnd()-.5)*spread,(rnd()-.5)*spread*.5,(rnd()-.5)*spread));const T=2*v.y/g;const t=rnd()*T;
+  pts.push(origin.x+v.x*t,origin.y+v.y*t-.5*g*t*t,origin.z+v.z*t)}const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));scene.add(new THREE.Points(geo,dustMat))}
+function prints(from,dir,n){const m=new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.4,depthWrite:false});for(let i=0;i<n;i++){const side=(i%2?1:-1)*.18;const p=from.clone().add(dir.clone().multiplyScalar(-i*.75)).add(new THREE.Vector3(-dir.z,0,dir.x).multiplyScalar(side));
+  const q=new THREE.Mesh(new THREE.CircleGeometry(.5,16),m);q.scale.set(.32,.6,1);q.rotation.x=-Math.PI/2;q.rotation.z=Math.atan2(dir.x,dir.z);q.position.set(p.x,height(p.x,p.z)+.04,p.z);scene.add(q)}}
 // --- shots ---
 const cam=new THREE.PerspectiveCamera(55,W/H,.1,9000);
 let focus, camPos, prompt='', floats=[], ghost=null, palette=false;
@@ -109,7 +122,9 @@ let tgt=null;
 if(shot=='earth'){tgt=near.find(n=>n.b.id=='smelter').b;const dir=new THREE.Vector2(tgt.x,tgt.z).normalize();const ex=tgt.x-dir.x*13,ez=tgt.z-dir.y*13;
   eng.position.set(ex,height(ex,ez),ez);eng.rotation.y=Math.atan2(tgt.x-ex,tgt.z-ez);scene.add(eng);
   rov.position.set(ex-dir.y*9,height(ex-dir.y*9,ez+dir.x*9),ez+dir.x*9);rov.rotation.y=eng.rotation.y+.9;scene.add(rov);
-  focus=new THREE.Vector3(ex+dir.x*6,height(ex,ez)+2,ez+dir.y*6);camPos=new THREE.Vector3(ex-dir.x*16+dir.y*7,height(ex,ez)+10,ez-dir.y*16-dir.x*7);prompt='[E] '+tgt.name+' (Lv '+tgt.lv+') - manage';}
+  focus=new THREE.Vector3(ex+dir.x*6,height(ex,ez)+2,ez+dir.y*6);
+  const cols=['#A0522D','#D2691E','#B7B7B7','#E8A33D'];const side=new THREE.Vector2(-dir.y,dir.x);
+  [[10,-7,8],[18,5,11],[26,-2,13],[6,9,6.5]].forEach(([f,sd,h],i)=>{const px=ex+dir.x*f+side.x*sd,pz=ez+dir.y*f+side.y*sd;quad(px,height(px,pz)+h,pz,Math.atan2(dir.x,dir.y)+i*.7,cols[i])});camPos=new THREE.Vector3(ex-dir.x*16+dir.y*7,height(ex,ez)+10,ez-dir.y*16-dir.x*7);prompt='[E] '+tgt.name+' (Lv '+tgt.lv+') - manage';}
 if(shot=='earth_build'){let best=null;for(let r=70;r<=200;r+=10)for(let a=0;a<6.28;a+=.2){const x=Math.cos(a)*r,z=Math.sin(a)*r;let m=1e9;for(const b of S.buildings)m=Math.min(m,Math.hypot(b.x-x,b.z-z)-b.fp/2);if(!best||m>best.m)best={x,z,m}}
   const ex=best.x,ez=best.z;const toC=new THREE.Vector2(-ex,-ez).normalize();eng.position.set(ex,height(ex,ez),ez);eng.rotation.y=Math.atan2(toC.x,toC.y);scene.add(eng);
   rov.position.set(ex-toC.y*8,height(ex-toC.y*8,ez+toC.x*8),ez+toC.x*8);rov.rotation.y=eng.rotation.y+1.2;scene.add(rov);
@@ -120,7 +135,18 @@ if(shot=='moon'){const cnt=p=>S.buildings.filter(b=>Math.hypot(b.x-p.x,b.z-p.z)<
   const toBase=new THREE.Vector2(-ex,-ez).normalize();eng.rotation.y=Math.atan2(toBase.x,toBase.y)+2.6;
   rov.position.set(ex+toBase.y*9,height(ex+toBase.y*9,ez-toBase.x*9),ez-toBase.x*9);rov.rotation.y=-.9;scene.add(rov);
   focus=new THREE.Vector3(ex+toBase.x*25,height(ex,ez)+4,ez+toBase.y*25);camPos=new THREE.Vector3(ex-toBase.x*10-toBase.y*5,height(ex,ez)+4,ez-toBase.y*10+toBase.x*5);
-  floats.push(['+2 '+p.name,'#e0e0e0',new THREE.Vector3(ex,height(ex,ez)+3.2,ez)]);prompt='[Hold F] Drill '+p.name+' by hand';
+  // Engineer mid-jetpack hop with footprints behind; rover throwing a parabolic rooster tail; hopper drone on its arc.
+  eng.position.y+=2.2;const jf=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex(),color:0x99d9ff,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));jf.scale.set(1.3,1.3,1);jf.position.set(0,.6,-.45);eng.add(jf);
+  prints(new THREE.Vector3(ex,0,ez).add(new THREE.Vector3(toBase.x,0,toBase.y).multiplyScalar(-1.2)),new THREE.Vector3(toBase.x,0,toBase.y),14);
+  dustArc(new THREE.Vector3(ex,height(ex,ez),ez),new THREE.Vector3(0,1.4,0),60,2.2);
+  const rv=rov.position.clone();const back=new THREE.Vector3(Math.sin(rov.rotation.y),0,Math.cos(rov.rotation.y)).multiplyScalar(-1);
+  for(const sx of [-1.4,1.4])dustArc(rv.clone().add(new THREE.Vector3(sx,.5,0)),back.clone().multiplyScalar(4).add(new THREE.Vector3(0,3.2,0)),220,1.1);
+  const A=new THREE.Vector3(ex+toBase.x*14+toBase.y*16,0,ez+toBase.y*14-toBase.x*16);A.y=height(A.x,A.z)+1.2;const B=new THREE.Vector3(ex+toBase.x*60-toBase.y*10,0,ez+toBase.y*60+toBase.x*10);B.y=height(B.x,B.z)+1.2;
+  const apex=18,vy=Math.sqrt(2*g*apex),T=(vy+Math.sqrt(Math.max(0,vy*vy-2*g*(B.y-A.y))))/g;const path=[];for(let i=0;i<=60;i++){const t=T*i/60;path.push(new THREE.Vector3(A.x+(B.x-A.x)*i/60,A.y+vy*t-.5*g*t*t,A.z+(B.z-A.z)*i/60))}
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(path),new THREE.LineDashedMaterial({color:0x7fdcff,dashSize:1,gapSize:.8,transparent:true,opacity:.7})).computeLineDistances());
+  const hp=path[38];hopper(hp.x,hp.y,hp.z,false);hopper(A.x,A.y+.4,A.z,true);dustArc(new THREE.Vector3(A.x,A.y-1.2,A.z),new THREE.Vector3(0,2.5,0),80,5);
+  floats.push(['ballistic hop: '+T.toFixed(1)+' s on the Moon ('+(T*Math.sqrt(S.gravity)).toFixed(1)+' s on Earth)','#7fdcff',hp.clone().add(new THREE.Vector3(0,3,0))]);
+  prompt='[Hold Space] Jetpack - 0.17 g, no air: thrust 1.5 g';
   if(earthSky){const d=focus.clone().sub(camPos);d.y=0;d.normalize();d.applyAxisAngle(new THREE.Vector3(0,1,0),-.25);d.y=.24;d.normalize();earthSky.position.copy(camPos).add(d.multiplyScalar(3500));earthSky.rotation.z=-.41}}
 if(isMoon){const d=camPos.clone().sub(focus);d.y=0;d.normalize();d.applyAxisAngle(new THREE.Vector3(0,1,0),.9);d.y=.5;sunDir.copy(d.normalize());sunSp.position.copy(camPos).add(sunDir.clone().multiplyScalar(3800));}
 cam.position.copy(camPos);cam.lookAt(focus);sun.target.position.copy(focus);scene.add(sun.target);sun.position.copy(focus).add(sunDir.clone().multiplyScalar(300));
@@ -134,6 +160,7 @@ const mm=()=>{const h=S.half,sz=200;const mp=(x,z)=>[(x+h)/(2*h)*sz,(h-z)/(2*h)*
   const [ex,ey]=mp(eng.position.x,eng.position.z);o+=`<div style="position:absolute;left:${ex-4.5}px;top:${ey-4.5}px;width:9px;height:9px;border-radius:5px;background:var(--cy)"></div>`;return o};
 const proj=v=>{const p=v.clone().project(cam);return [(p.x+1)/2*W,(1-p.y)/2*H]};
 let fl='';for(const [t,c,v] of floats){const [x,y]=proj(v);fl+=`<div class="float" style="left:${x}px;top:${y}px;color:${c}">${t}</div>`}
+const jet=shot=='moon'?`<div style="position:absolute;left:${W/2-120}px;top:${H-232}px;width:240px;text-align:center;font-size:11px;color:var(--dim)">JETPACK (hold Space in the air)</div><div class="bar" style="position:absolute;left:${W/2-100}px;top:${H-212}px;width:200px;height:10px;--c:#73d9ff"><i style="width:120px"></i></div>`:'';
 const center=(txt,y)=>`<div class="glass" style="left:50%;transform:translateX(-50%);top:${y}px;padding:9px 18px;white-space:nowrap">${txt}</div>`;
 let mid='';
 if(palette){mid+=center('<span style="color:var(--good)">Left click: build Research Laboratory</span> &nbsp; R: rotate &nbsp; Esc: cancel',H-168)+`<div style="position:absolute;left:50%;transform:translateX(-50%);top:${H-196}px;font-size:12px">Cost: 15 Iron Plate &nbsp;10 Copper Wire</div>`;
@@ -152,6 +179,6 @@ document.getElementById('ui').innerHTML=`<div class="top"><div class="logo" styl
 <div style="position:absolute;left:16px;top:${H-58}px"><b>${S.name}</b> <span class="dim">${S.gravity.toFixed(2)} g · ${S.temp} °C · ${S.atm}</span></div>
 <div class="glass" style="left:${W/2-430}px;top:${H-46}px;width:860px;height:34px;text-align:center;line-height:32px;font-size:12px">WASD move · Shift sprint · Space jump · B build · E interact · F drill · Right-drag camera · Tab command center · M orbit view</div>
 ${SN.objective?`<div class="glass" style="right:10px;bottom:10px;width:330px;padding:8px 14px 10px 20px"><div class="dim">CURRENT OBJECTIVE</div><div style="margin:2px 0 7px"><span style="color:var(--or)">${SN.objective.split(' - ')[0]}</span> <span style="font-size:12px">${SN.objective.split(' - ')[1]}</span></div><div class="bar" style="--c:#ff963c"><i style="width:${Math.min(1,SN.objp)*296}px"></i></div></div>`:''}
-${mid}${fl}`;
+${mid}${fl}${jet}`;
 document.body.dataset.done='1';
 </script></body></html>

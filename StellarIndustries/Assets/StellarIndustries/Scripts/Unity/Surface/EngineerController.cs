@@ -18,6 +18,12 @@ namespace StellarIndustries.Unity.Surface
         float phase;
         public bool InRover;
         public bool Drilling { get; set; }
+        /// <summary>Cold-gas jetpack, only where gravity is low and there is no air to make it pointless (g &lt; 4 m/s²).</summary>
+        public bool HasJetpack => world != null && world.Airless && world.GravityMs2 < 4;
+        public float JetFuel { get; private set; } = 1;
+        Transform jetFlame;
+        bool wasGrounded = true, leftFoot;
+        float lastStepPhase;
         public float Speed => new Vector2(velocity.x, velocity.z).magnitude;
 
         public void Init(SurfaceWorld w, Vector3 spawn)
@@ -47,6 +53,9 @@ namespace StellarIndustries.Unity.Surface
             legR = Limb(model, new Vector3(0.15f, 0.78f, 0), suit, dark, 0.78f);
             armL = Limb(model, new Vector3(-0.38f, 1.42f, 0), suit, orange, 0.6f);
             armR = Limb(model, new Vector3(0.38f, 1.42f, 0), suit, orange, 0.6f);
+            jetFlame = VisualFactory.Billboard("Jet", model, VisualFactory.GlowTexture, new Color(0.6f, 0.85f, 1f, 1f), 0.9f).transform;
+            jetFlame.localPosition = new Vector3(0, 0.75f, -0.42f);
+            jetFlame.localScale = Vector3.zero;
             var lamp = new GameObject("Helmet lamp").AddComponent<Light>();
             lamp.transform.SetParent(model, false); lamp.transform.localPosition = new Vector3(0, 1.85f, 0.2f); lamp.transform.localRotation = Quaternion.Euler(12, 0, 0);
             lamp.type = LightType.Spot; lamp.spotAngle = 55; lamp.range = 28; lamp.intensity = 1.2f; lamp.color = new Color(1f, 0.96f, 0.88f);
@@ -90,14 +99,38 @@ namespace StellarIndustries.Unity.Surface
                 if (velocity.y < 0) velocity.y = -1f;
                 if (SurfaceInput.Pressed(KeyCode.Space)) velocity.y = JumpSpeed;
             }
+            // Jetpack: hold Space in the air. Thrust 1.5 g (net upward 0.5 g), ~3 s of fuel, refills on the ground.
+            bool jetting = false;
+            if (HasJetpack)
+            {
+                if (!cc.isGrounded && SurfaceInput.Held(KeyCode.Space) && JetFuel > 0 && velocity.y < JumpSpeed * 1.4f)
+                {
+                    velocity.y += 1.5f * g * dt; JetFuel = Mathf.Max(0, JetFuel - dt / 3f); jetting = true;
+                    float above = transform.position.y - world.HeightAt(transform.position.x, transform.position.z);
+                    if (above < 4) world.Dust?.Burst(new Vector3(transform.position.x, world.HeightAt(transform.position.x, transform.position.z), transform.position.z), Vector3.zero, 2.5f, 3);
+                }
+                else if (cc.isGrounded) JetFuel = Mathf.Min(1, JetFuel + dt * 0.25f);
+            }
+            jetFlame.localScale = Vector3.one * (jetting ? 0.9f + Random.value * 0.4f : 0);
             velocity.y -= g * dt;
             cc.Move(velocity * dt);
+            // Landing puff and footsteps: dust flies ballistically under the local gravity; prints stay on airless worlds.
+            if (cc.isGrounded && !wasGrounded) world.Dust?.Burst(transform.position, Vector3.zero, 1.6f, 22);
+            wasGrounded = cc.isGrounded;
             if (transform.position.y < world.HeightAt(transform.position.x, transform.position.z) - 2) Teleport(new Vector3(transform.position.x, world.HeightAt(transform.position.x, transform.position.z) + 1, transform.position.z));
 
             if (horiz.sqrMagnitude > 0.05f) model.rotation = Quaternion.Slerp(model.rotation, Quaternion.LookRotation(horiz), 1 - Mathf.Exp(-10 * dt));
             // Walk cycle: longer, floatier strides in low gravity.
             float s = horiz.magnitude;
             phase += dt * s * Mathf.Lerp(1.2f, 2.2f, Mathf.Clamp01(g / 9.81f));
+            if (cc.isGrounded && s > 0.8f && Mathf.Floor(phase / Mathf.PI) != Mathf.Floor(lastStepPhase / Mathf.PI))
+            {
+                leftFoot = !leftFoot;
+                var side = model.right * (leftFoot ? -0.16f : 0.16f);
+                world.Prints?.Stamp(transform.position + side, model.eulerAngles.y, new Vector2(0.16f, 0.32f));
+                world.Dust?.Burst(transform.position + side, horiz * 0.25f + Vector3.up * 0.6f, 0.5f, s > WalkSpeed ? 8 : 5);
+            }
+            lastStepPhase = phase;
             float swing = cc.isGrounded ? Mathf.Sin(phase) * Mathf.Clamp01(s / WalkSpeed) * 35 : 18;
             legL.localRotation = Quaternion.Euler(swing, 0, 0); legR.localRotation = Quaternion.Euler(-swing, 0, 0);
             armL.localRotation = Quaternion.Euler(Drilling ? -70 : -swing * 0.8f, 0, 0); armR.localRotation = Quaternion.Euler(Drilling ? -70 : swing * 0.8f, 0, 0);

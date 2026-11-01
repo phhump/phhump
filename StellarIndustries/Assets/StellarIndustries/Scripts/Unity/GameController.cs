@@ -31,6 +31,7 @@ namespace StellarIndustries.Unity
         public readonly List<string> PendingWarnings = new List<string>();
 
         public event Action<GameSimulation> SimulationStarted;
+        public Performance.PerformanceMonitor Perf { get; private set; }
         public event Action SimulationStopped;
 
         float autosaveTimer;
@@ -41,7 +42,9 @@ namespace StellarIndustries.Unity
 
         void Awake()
         {
-            Application.targetFrameRate = 60;
+            Performance.GraphicsQuality.Load();
+            Application.runInBackground = true; // idle game keeps producing in the background (battery saver drops to 10 fps)
+            Perf = gameObject.AddComponent<Performance.PerformanceMonitor>();
             Db = ContentLoader.Load();
             Saves = new SaveManager(new FileSaveStorage(SaveDirectory), Db);
             // Note: no '??' here - Unity's overloaded null check must be used for components.

@@ -40,6 +40,7 @@ namespace StellarIndustries.Unity.UI
         public readonly List<Toast> Log = new List<Toast>();
 
         string confirmText; Action confirmAction;
+        GUIStyle labelStyle;
         Vector2 modalScroll;
         bool dragging; Vector2 dragStart;
         readonly List<SpaceView.Label> labels = new List<SpaceView.Label>();
@@ -56,6 +57,17 @@ namespace StellarIndustries.Unity.UI
                 if (screen == "research") Open<ResearchPanel>(); else if (screen == "missions") Open<MissionsPanel>();
             };
             gc.SimulationStopped += () => { Surface?.Exit(); CommandOpen = false; };
+            if (gc.Perf != null) gc.Perf.Notice += msg => Notify(msg, NotificationLevel.Warning);
+            // A preset change rebuilds the visuals that depend on it (terrain grid, LOD, spheres, clouds, budgets).
+            Performance.GraphicsQuality.Changed += () =>
+            {
+                View.RefreshQuality();
+                if (Surface != null && Surface.Active && Sim != null)
+                {
+                    var pos = Surface.Engineer != null ? Surface.Engineer.transform.position : Vector3.zero;
+                    Surface.Enter(Sim, Sim.State.CurrentLocation, pos);
+                }
+            };
             menu = new MainMenu(this);
             panels = new Panel[]
             {
@@ -87,6 +99,12 @@ namespace StellarIndustries.Unity.UI
         void OnGUI()
         {
             Theme.Ensure();
+            var ev = Event.current;
+            if (GC.Perf != null)
+            {
+                if (ev.isKey || ev.isMouse || ev.type == EventType.ScrollWheel) GC.Perf.NotifyInput();
+                GC.Perf.IdleAllowed = Surface == null || !Surface.Active;
+            }
             float userScale = Sim != null ? Sim.State.Settings.UiScale : 1;
             Scale = Mathf.Clamp(Screen.height / 900f, 0.55f, 3f) * userScale;
             GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(Scale, Scale, 1));
@@ -202,6 +220,8 @@ namespace StellarIndustries.Unity.UI
             x = Stat(x, 150, "ENERGY", Gx.Colored(NumberFormat.Short(sup) + " / " + NumberFormat.Short(dem) + " MW", ec));
             double sciRate = 0;
             foreach (var l in Sim.State.Locations.Values) if (l.Rates != null && l.Rates.TryGetValue(ResearchSystem.ScienceId, out var sr)) sciRate += sr;
+            if (Performance.GraphicsQuality.ShowFps && GC.Perf != null)
+                GUI.Label(new Rect(VW - 390, 40, 80, 18), "<size=11><color=#8498B0>" + GC.Perf.Fps.ToString("0") + " fps</color></size>", Theme.Small);
             x = Stat(x, 150, "SCIENCE", Gx.Colored(NumberFormat.Short(Sim.Inventory.Get("earth", ResearchSystem.ScienceId)), Theme.Cyan) + "  " + Gx.Colored(NumberFormat.Rate(sciRate), Theme.Dim));
             var active = Sim.Db.Tech(Sim.State.Research.ActiveTech);
             GUI.Label(new Rect(x, 9, 220, 16), "RESEARCH", Theme.DimLabel);
@@ -320,8 +340,8 @@ namespace StellarIndustries.Unity.UI
             {
                 var p = new Vector2(l.Screen.x / Scale, (Screen.height - l.Screen.y) / Scale);
                 if (p.x < PanelRect.xMax) continue;
-                var s = new GUIStyle(Theme.Small) { alignment = TextAnchor.LowerCenter };
-                GUI.Label(new Rect(p.x - 60, p.y - 20, 120, 18), l.Unlocked ? Gx.Colored(l.Name, Theme.Cyan) : Gx.Colored(l.Name + " (unexplored)", Theme.Dim), s);
+                if (labelStyle == null) labelStyle = new GUIStyle(Theme.Small) { alignment = TextAnchor.LowerCenter };
+                GUI.Label(new Rect(p.x - 90, p.y - 20, 180, 18), l.Unlocked ? Gx.Colored(l.Name, Theme.Cyan) : Gx.Colored(l.Name + " (unexplored)", Theme.Dim), labelStyle);
             }
         }
 

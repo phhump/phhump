@@ -53,6 +53,8 @@ namespace StellarIndustries.Tests
             ("Placement: deposit fields, overlap, bounds", PlacementRules),
             ("Placement: player-built mine extracts only its field", PlacedMineRecipes),
             ("Placement: auto-placed buildings never overlap; positions saved", AutoPlacementAndSave),
+            ("Performance: 2,000 buildings place fast and tick without garbage", PerformanceRegression),
+            ("Physics: ballistic drone hops follow local gravity", BallisticHops),
             ("Bot playthrough reaches the Moon and harvests He-3", BotPlaythrough),
         };
 
@@ -651,6 +653,41 @@ namespace StellarIndustries.Tests
             foreach (var b in lr.State.Buildings) b.Placed = false;
             var sim2 = new GameSimulation(sim.Db, lr.State);
             Assert(sim2.State.Buildings.All(b => b.Placed), "legacy buildings are auto-placed on load");
+        }
+
+        static void PerformanceRegression()
+        {
+            var sim = NewSim(51);
+            CompleteAllTechs(sim);
+            sim.Missions.UnlockLocation("moon");
+            var defs = new[] { "surface_mine", "smelter", "component_factory", "research_lab", "wind_turbine", "chemical_plant" };
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            for (int i = 0; i < 2000; i++) sim.Construction.Place(sim.Db.Building(defs[i % defs.Length]), i % 3 == 0 ? "moon" : "earth");
+            Assert(sw.Elapsed.TotalSeconds < 10, "placing 2,000 buildings took " + sw.Elapsed.TotalSeconds.ToString("0.0") + " s (was minutes before the spatial index)");
+            for (int i = 0; i < 30; i++) sim.Tick(0.1);
+            sw.Restart();
+#if !UNITY_5_3_OR_NEWER
+            long before = GC.GetAllocatedBytesForCurrentThread();
+#endif
+            for (int i = 0; i < 300; i++) sim.Tick(1.0 / 60);
+            double ms = sw.Elapsed.TotalMilliseconds / 300;
+            Assert(ms < 10, "tick with 2,000 buildings: " + ms.ToString("0.00") + " ms");
+#if !UNITY_5_3_OR_NEWER
+            long perTick = (GC.GetAllocatedBytesForCurrentThread() - before) / 300;
+            Assert(perTick < 512, "garbage per tick must stay near zero (GC spikes on low-end PCs): " + perTick + " bytes");
+#endif
+        }
+
+        static void BallisticHops()
+        {
+            var db = DefaultContent.Create();
+            double gMoon = db.Location("moon").Gravity * 9.80665, gEarth = 9.80665;
+            var moon = SpacePhysics.BallisticHop(20, 0, gMoon);
+            var earth = SpacePhysics.BallisticHop(20, 0, gEarth);
+            Near(moon.time / earth.time, Math.Sqrt(gEarth / gMoon), 1e-9, "same hop takes sqrt(gEarth/gMoon) ~ 2.46x longer on the Moon");
+            Near(moon.vy * moon.vy / (2 * gMoon), 20, 1e-9, "apex height reached");
+            var up = SpacePhysics.BallisticHop(20, 5, gMoon);
+            Near(up.vy * up.time - 0.5 * gMoon * up.time * up.time, 5, 1e-9, "lands exactly 5 m higher");
         }
 
         // ---------------------------------------------------------------- bot playthrough

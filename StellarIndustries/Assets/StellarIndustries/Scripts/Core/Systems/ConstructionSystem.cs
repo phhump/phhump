@@ -163,6 +163,7 @@ namespace StellarIndustries.Core.Systems
         {
             var b = Find(uid);
             if (b == null) return false;
+            placement?.ForgetMemo();
             var def = db.Building(b.DefId);
             state.Buildings.Remove(b);
             if (def != null) foreach (var c in def.BuildCost) inv.Add(b.LocationId, c.ResourceId, Math.Floor(c.Amount * 0.5), false);

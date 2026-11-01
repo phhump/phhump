@@ -99,3 +99,17 @@ all exoplanets (nobody knows their composition); 20 % lower solar yield around r
 
 *Game simplifications:* deuterium separation yield (10 water → 1 deuterium) is far higher than the natural D/H ratio would allow;
 helium-3 harvesting is enormously faster than real estimates; flight times are compressed (minutes instead of centuries).
+
+## 7. Gravity and atmosphere on the surface (engineer mode)
+- **Walking and jumping** use the real surface gravity (Earth 9.81, Mars 3.73, Moon 1.62 m/s²): the same jump
+  (3 m/s) reaches ~0.5 m on Earth, ~1.2 m on Mars and ~2.8 m on the Moon. Lower gravity means less traction.
+- **Jetpack** only on airless low-gravity worlds (g < 4 m/s²): thrust 1.5 g, ~3 s of gas (game values).
+- **Drones:** with an atmosphere, quadcopters. Mars' air has about 1 % of Earth's density, so rotor craft need larger,
+  much faster rotors (as NASA's Ingenuity helicopter did) — the game shows bigger blades spinning faster. Without air (Moon)
+  rotors are useless: drones **hop ballistically**, thrusting only to take off and land.
+  Flight time t = (vy + sqrt(vy² − 2 g Δh)) / g with vy = sqrt(2 g h) — the same hop lasts sqrt(9.81/1.62) ≈ 2.46× longer on
+  the Moon (tested).
+- **Dust** is emitted with the exact ballistic lifetime 2·vy/g. On the Moon it flies in clean parabolas and falls straight
+  back (the "rooster tails" seen behind the Apollo rover); with air, drag slows it and the puff expands (weaker on Mars).
+- **Footprints** stay on airless worlds (no wind), and fade on Earth and Mars.
+*Simplifications:* drone masses/thrust are not simulated, only kinematics; Mars air density figure is approximate.

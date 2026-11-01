@@ -4,7 +4,7 @@ An idle / incremental space-industry simulator for Unity. You start with one min
 one wind turbine on Earth, research rocketry, build your first rocket, reach orbit, land on the Moon,
 build a lunar industry from local resources and — with enough research — head for Mars.
 
-> **Status:** playable test build. The simulation core is compiled and covered by 34 automated
+> **Status:** playable test build. The simulation core is compiled and covered by 36 automated
 > tests (including a bot that plays from scratch to helium-3 mining on the Moon). The Unity layer
 > compiles against UnityEngine 2021.3 LTS reference assemblies, but it has **not yet been run
 > inside the Unity Editor** in this environment — please report anything that looks off.
@@ -13,7 +13,7 @@ build a lunar industry from local resources and — with enough research — hea
 
 **Engineer mode (new):** you play an engineer on the surface and place every building yourself.
 
-| Managing a smelter on Earth | Build mode: placing a research lab | Drilling regolith by hand on the Moon (Earth in the sky) |
+| Managing a smelter on Earth (delivery drones overhead) | Build mode: placing a research lab | Moon: jetpack, footprints, a hopper drone on its ballistic arc, Earth in the sky |
 |---|---|---|
 | ![Earth](Docs/preview/surface_earth.png) | ![Build](Docs/preview/surface_earth_build.png) | ![Moon](Docs/preview/surface_moon.png) |
 
@@ -47,7 +47,7 @@ Copy `Assets/StellarIndustries` into the `Assets` folder of any 3D project (buil
 | Key | Action |
 |---|---|
 | W A S D | walk (rover: drive / steer) |
-| Shift / Space | sprint / jump — jump height follows real gravity (Moon ~6x higher than on Earth) |
+| Shift / Space | sprint / jump — jump height follows real gravity (Moon ~6x higher than on Earth); on the Moon hold Space in the air for the jetpack |
 | Right mouse drag · wheel | rotate / zoom camera |
 | B | build palette → choose → place with left click, R rotates, Esc cancels |
 | E | interact: manage building, open research terminal (labs), mission control (rocket pad), enter/leave rover |
@@ -87,6 +87,10 @@ Settings → *Developer tools* offers game speed 1–100×, "simulate offline ti
 - **Scientific realism** (see `Docs/SCIENCE.md`, sources: NASA fact sheets, Wikipedia *Delta-v budget*): staged rocket equation, real Δv budgets, cargo mass limits, Mars launch windows (synodic period), inverse-square solar power, air separation for LOX, flight-heritage reliability, real planet data in the UI.
 - **UI**: main menu with slots, 10 screens, progressive unlocking of screens, tooltips, notifications, objectives.
 
+## Performance
+Four graphics presets with auto-detection, adaptive quality and a battery saver; LOD, instancing, static batching and a
+garbage-free simulation (12 bytes per tick even with 5,000 buildings). Details and measurements: `Docs/PERFORMANCE.md`.
+
 ## Tests & compile checks (no Unity required)
 ```bash
 Tools/HeadlessTests/run.sh                       # builds core as netstandard2.1/C# 9 and runs all tests
@@ -100,4 +104,5 @@ Inside Unity: *Window → General → Test Runner → EditMode* runs the same su
 - `Docs/ARCHITECTURE.md` — systems, data flow, design decisions
 - `Docs/ADDING_CONTENT.md` — add planets, resources, buildings, recipes, rockets, missions without code
 - `Docs/ROADMAP.md` — milestone status and next steps
+- `Docs/PERFORMANCE.md` — measurements, presets and optimisations
 - `Docs/SCIENCE.md` — physics model, real data, sources and deliberate simplifications

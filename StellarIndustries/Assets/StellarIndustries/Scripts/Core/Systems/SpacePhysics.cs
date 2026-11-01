@@ -130,6 +130,17 @@ namespace StellarIndustries.Core.Systems
             return l.SolarMultiplier;
         }
 
+        /// <summary>
+        /// Ballistic hop without air drag (vacuum): launch vertical speed for a given apex height and total flight time to a
+        /// landing point dy metres higher/lower. vy = sqrt(2 g h); T solves dy = vy·T - g·T²/2.
+        /// </summary>
+        public static (double vy, double time) BallisticHop(double apexM, double dyM, double g)
+        {
+            double vy = Math.Sqrt(2 * g * apexM);
+            double disc = Math.Max(0, vy * vy - 2 * g * dyM);
+            return (vy, (vy + Math.Sqrt(disc)) / g);
+        }
+
         /// <summary>Reliability bonus from successful flights of a design: up to +6%, half of it after ~6 flights.</summary>
         public static double HeritageBonus(int successfulFlights) => 0.06 * (1 - Math.Exp(-Math.Max(0, successfulFlights) / 8.0));
     }

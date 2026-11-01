@@ -25,6 +25,39 @@ namespace StellarIndustries.Core.Systems
         readonly GameState state;
         readonly Dictionary<string, List<DepositPatch>> patchCache = new Dictionary<string, List<DepositPatch>>();
 
+        // Spatial hash (32 m cells) of placed buildings: overlap checks are O(neighbours) instead of O(all buildings).
+        const double Cell = 32;
+        readonly Dictionary<(string, int, int), List<BuildingInstance>> grid = new Dictionary<(string, int, int), List<BuildingInstance>>();
+        int gridCount = -1;
+        bool gridDirty = true;
+        double maxRadius;
+
+        public void MarkDirty() => gridDirty = true;
+        /// <summary>After a demolition, space frees up again: restart ring searches from the centre.</summary>
+        public void ForgetMemo() { ringMemo.Clear(); gridDirty = true; }
+
+        static (int, int) CellOf(double x, double z) => ((int)Math.Floor(x / Cell), (int)Math.Floor(z / Cell));
+
+        void EnsureGrid()
+        {
+            if (!gridDirty && gridCount == state.Buildings.Count) return;
+            grid.Clear();
+            maxRadius = 0;
+            foreach (var b in state.Buildings) if (b.Placed) AddToGrid(b);
+            gridCount = state.Buildings.Count;
+            gridDirty = false;
+        }
+
+        void AddToGrid(BuildingInstance b)
+        {
+            var (cx, cz) = CellOf(b.PosX, b.PosZ);
+            var key = (b.LocationId, cx, cz);
+            if (!grid.TryGetValue(key, out var list)) grid[key] = list = new List<BuildingInstance>();
+            list.Add(b);
+            var def = db.Building(b.DefId);
+            if (def != null) maxRadius = Math.Max(maxRadius, Radius(def));
+        }
+
         public PlacementSystem(GameDatabase db, GameState state) { this.db = db; this.state = state; }
 
         static uint Hash(string s) { uint h = 2166136261; foreach (char c in s) { h ^= c; h *= 16777619; } return h; }
@@ -67,11 +100,15 @@ namespace StellarIndustries.Core.Systems
 
         public IEnumerable<DepositPatch> PatchesAt(string locationId, double x, double z) => Patches(locationId).Where(p => p.Contains(x, z));
 
-        /// <summary>Is the building standing on a field of this deposit? Unplaced/exempt buildings always count as yes.</summary>
+        /// <summary>Is the building standing on a field of this deposit? Unplaced/exempt buildings always count as yes.
+        /// Called every tick for every extractor: written as a plain loop so it allocates nothing.</summary>
         public bool OnDeposit(BuildingInstance b, string resourceId)
         {
             if (b == null || !b.Placed || b.DepositExempt) return true;
-            return PatchesAt(b.LocationId, b.PosX, b.PosZ).Any(p => p.ResourceId == resourceId);
+            var list = Patches(b.LocationId);
+            for (int i = 0; i < list.Count; i++)
+                if (list[i].ResourceId == resourceId && list[i].Contains(b.PosX, b.PosZ)) return true;
+            return false;
         }
 
         /// <summary>Footprint radius plus 2.5 m clearance, so neighbouring buildings always leave a ~5 m walkway.</summary>
@@ -85,14 +122,22 @@ namespace StellarIndustries.Core.Systems
             double r = Radius(def), half = loc.SurfaceHalfSizeM;
             if (Math.Abs(x) > half - r || Math.Abs(z) > half - r) return "Outside the surveyed area";
             if (x * x + z * z < (SpawnClearRadius + r) * (SpawnClearRadius + r)) return "Keep the landing pad clear";
-            foreach (var b in state.Buildings)
-            {
-                if (b.LocationId != locationId || !b.Placed || b.Uid == ignoreUid) continue;
-                var od = db.Building(b.DefId);
-                if (od == null) continue;
-                double min = r + Radius(od);
-                if ((b.PosX - x) * (b.PosX - x) + (b.PosZ - z) * (b.PosZ - z) < min * min) return "Too close to " + od.Name;
-            }
+            EnsureGrid();
+            int reach = (int)Math.Ceiling((r + maxRadius) / Cell);
+            var (gx, gz) = CellOf(x, z);
+            for (int cx = gx - reach; cx <= gx + reach; cx++)
+                for (int cz = gz - reach; cz <= gz + reach; cz++)
+                {
+                    if (!grid.TryGetValue((locationId, cx, cz), out var cell)) continue;
+                    foreach (var b in cell)
+                    {
+                        if (b.Uid == ignoreUid) continue;
+                        var od = db.Building(b.DefId);
+                        if (od == null) continue;
+                        double min = r + Radius(od);
+                        if ((b.PosX - x) * (b.PosX - x) + (b.PosZ - z) * (b.PosZ - z) < min * min) return "Too close to " + od.Name;
+                    }
+                }
             // Extraction buildings need a matching deposit field under them.
             if (def.PowerOutput <= 0 && def.Recipes.Count > 0 && def.Category == BuildingCategory.Extraction)
             {
@@ -116,7 +161,10 @@ namespace StellarIndustries.Core.Systems
             foreach (var c in centers)
             {
                 bool onPatch = c.r < 200;
-                for (double ring = 0; ring <= c.r; ring += step)
+                // Rings below the last successful one are full already (buildings are never moved): resume there.
+                var memoKey = (locationId, Math.Round(c.x), Math.Round(c.z), def.FootprintM);
+                ringMemo.TryGetValue(memoKey, out double startRing);
+                for (double ring = startRing; ring <= c.r; ring += step)
                 {
                     int n = ring < 1 ? 1 : (int)Math.Ceiling(2 * Math.PI * ring / step);
                     for (int k = 0; k < n; k++)
@@ -125,12 +173,15 @@ namespace StellarIndustries.Core.Systems
                         double px = c.x + Math.Cos(a) * ring, pz = c.z + Math.Sin(a) * ring;
                         if (onPatch && (px - c.x) * (px - c.x) + (pz - c.z) * (pz - c.z) > c.r * c.r) continue;
                         if (SpotProblem(def, locationId, px, pz) == null || (!onPatch && SpotProblemIgnoringDeposit(def, locationId, px, pz) == null))
-                        { x = px; z = pz; return true; }
+                        { x = px; z = pz; ringMemo[memoKey] = Math.Max(0, ring - step); return true; }
                     }
                 }
+                ringMemo[memoKey] = c.r + step; // this field is full for this footprint
             }
             return false;
         }
+
+        readonly Dictionary<(string, double, double, double), double> ringMemo = new Dictionary<(string, double, double, double), double>();
 
         string SpotProblemIgnoringDeposit(BuildingDef def, string locationId, double x, double z)
         {
@@ -157,6 +208,7 @@ namespace StellarIndustries.Core.Systems
             }
             b.RotationDeg = (b.Uid * 47) % 360;
             b.Placed = true;
+            if (!gridDirty) { AddToGrid(b); gridCount = state.Buildings.Count; }
         }
 
         public void PlaceAllUnplaced() { foreach (var b in state.Buildings.ToList()) if (!b.Placed) AutoPlace(b); }

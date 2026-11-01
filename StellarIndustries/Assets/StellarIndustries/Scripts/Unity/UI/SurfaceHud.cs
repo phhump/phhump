@@ -14,10 +14,26 @@ namespace StellarIndustries.Unity.UI
         Vector2 paletteScroll;
         public SurfaceHud(GameUI ui) { this.ui = ui; }
 
+        // Cached styles and data: OnGUI runs several times per frame, so allocations here add up quickly.
+        GUIStyle centerSmall, rightSmall, floatStyle, wrapSmall;
+        System.Collections.Generic.List<ResourceDef> resCache = new System.Collections.Generic.List<ResourceDef>();
+        float resTime = -1;
+        string resLoc;
+
+        void EnsureStyles()
+        {
+            if (centerSmall != null) return;
+            centerSmall = new GUIStyle(Theme.Small) { alignment = TextAnchor.MiddleCenter };
+            rightSmall = new GUIStyle(Theme.Small) { alignment = TextAnchor.MiddleRight };
+            floatStyle = new GUIStyle(Theme.Label) { alignment = TextAnchor.MiddleCenter, fontSize = 16 };
+            wrapSmall = new GUIStyle(Theme.Small) { wordWrap = true };
+        }
+
         public void Draw(SurfaceWorld w)
         {
             var sim = ui.Sim;
             float VW = ui.VW, VH = ui.VH;
+            EnsureStyles();
             DrawResources(w, sim);
             DrawMinimap(w, sim, new Rect(10, VH - 286, 220, 220));
             DrawFloatingTexts(w);
@@ -33,8 +49,7 @@ namespace StellarIndustries.Unity.UI
             if (w.FieldUnderEngineer.HasValue && w.Build.Selected == null)
             {
                 var f = w.FieldUnderEngineer.Value;
-                GUI.Label(new Rect(VW / 2 - 200, VH - 196, 400, 22), "<color=#8498B0>Standing on a</color> " + sim.Db.ResourceName(f.ResourceId) + " <color=#8498B0>field · richness " + NumberFormat.Percent(f.Richness) + "</color>",
-                    new GUIStyle(Theme.Small) { alignment = TextAnchor.MiddleCenter });
+                GUI.Label(new Rect(VW / 2 - 200, VH - 196, 400, 22), "<color=#8498B0>Standing on a</color> " + sim.Db.ResourceName(f.ResourceId) + " <color=#8498B0>field · richness " + NumberFormat.Percent(f.Richness) + "</color>", centerSmall);
             }
 
             // Build mode feedback
@@ -47,7 +62,12 @@ namespace StellarIndustries.Unity.UI
                 var r = new Rect(VW / 2 - size.x / 2 - 18, VH - 168, size.x + 36, 40);
                 GUI.Box(r, GUIContent.none, Theme.Box);
                 GUI.Label(new Rect(r.x + 18, r.y + 9, size.x + 4, 24), txt, Theme.Label);
-                GUI.Label(new Rect(VW / 2 - 300, VH - 196, 600, 22), "Cost: " + Fmt.Cost(sim, w.LocationId, sim.Construction.BuildCost(def, w.LocationId)), new GUIStyle(Theme.Small) { alignment = TextAnchor.MiddleCenter });
+                GUI.Label(new Rect(VW / 2 - 300, VH - 196, 600, 22), "Cost: " + Fmt.Cost(sim, w.LocationId, sim.Construction.BuildCost(def, w.LocationId)), centerSmall);
+            }
+            if (w.Engineer.HasJetpack && !w.Engineer.InRover && w.Engineer.JetFuel < 0.999f)
+            {
+                GUI.Label(new Rect(VW / 2 - 120, VH - 232, 240, 18), "<size=11><color=#8498B0>JETPACK (hold Space in the air)</color></size>", centerSmall);
+                Gx.Bar(new Rect(VW / 2 - 100, VH - 212, 200, 10), w.Engineer.JetFuel, new Color(0.45f, 0.85f, 1f, 0.9f));
             }
             if (w.Build.PaletteOpen) DrawPalette(w, sim);
             if (w.OpenPanelUid != 0) DrawBuildingPanel(w, sim);
@@ -61,7 +81,7 @@ namespace StellarIndustries.Unity.UI
                 : "WASD move · Shift sprint · Space jump · B build · E interact · F drill · Right-drag camera · Tab command center · M orbit view";
             var r = new Rect(ui.VW / 2 - 430, ui.VH - 46, 860, 34);
             GUI.Box(r, GUIContent.none, Theme.Box);
-            GUI.Label(r, c, new GUIStyle(Theme.Small) { alignment = TextAnchor.MiddleCenter });
+            GUI.Label(r, c, centerSmall);
             var g = w.Def;
             GUI.Label(new Rect(16, ui.VH - 58, 420, 30), "<b>" + g.Name + "</b>  <color=#8498B0>" + g.Gravity.ToString("0.00") + " g · " + g.TemperatureC.ToString("0") + " °C · " + (g.Atmosphere ?? "") + "</color>", Theme.Label);
         }
@@ -69,7 +89,12 @@ namespace StellarIndustries.Unity.UI
         void DrawResources(SurfaceWorld w, Core.Simulation.GameSimulation sim)
         {
             var loc = sim.State.Location(w.LocationId);
-            var items = sim.Db.Resources.Where(r => !r.IsGlobal && sim.Inventory.Get(w.LocationId, r.Id) >= 1).OrderBy(r => r.Category).Take(14).ToList();
+            if (Time.unscaledTime - resTime > 0.25f || resLoc != w.LocationId)
+            {
+                resTime = Time.unscaledTime; resLoc = w.LocationId;
+                resCache = sim.Db.Resources.Where(r => !r.IsGlobal && sim.Inventory.Get(w.LocationId, r.Id) >= 1).OrderBy(r => r.Category).Take(14).ToList();
+            }
+            var items = resCache;
             float h = 16 + items.Count * 22;
             var r = new Rect(10, 74, 230, h);
             GUI.Box(r, GUIContent.none, Theme.Box);
@@ -81,8 +106,7 @@ namespace StellarIndustries.Unity.UI
                 loc.Rates.TryGetValue(res.Id, out var rate);
                 double amt = sim.Inventory.Get(w.LocationId, res.Id), cap = sim.Inventory.Capacity(w.LocationId, res.Id);
                 GUI.Label(new Rect(r.x + 30, y, 120, 22), res.Name, Theme.Small);
-                GUI.Label(new Rect(r.x + 120, y, 100, 22), Gx.Colored(NumberFormat.Short(amt), amt >= cap ? Theme.Warn : Theme.Text) + (rate != 0 ? Gx.Colored(" " + NumberFormat.Rate(rate), rate > 0 ? Theme.Good : Theme.Bad) : ""),
-                    new GUIStyle(Theme.Small) { alignment = TextAnchor.MiddleRight });
+                GUI.Label(new Rect(r.x + 120, y, 100, 22), Gx.Colored(NumberFormat.Short(amt), amt >= cap ? Theme.Warn : Theme.Text) + (rate != 0 ? Gx.Colored(" " + NumberFormat.Rate(rate), rate > 0 ? Theme.Good : Theme.Bad) : ""), rightSmall);
                 y += 22;
             }
         }
@@ -127,9 +151,8 @@ namespace StellarIndustries.Unity.UI
                 var sp = cam.WorldToScreenPoint(pos + Vector3.up * age * 1.2f);
                 if (sp.z <= 0) continue;
                 var p = new Vector2(sp.x / ui.Scale, (Screen.height - sp.y) / ui.Scale);
-                var st = new GUIStyle(Theme.Label) { alignment = TextAnchor.MiddleCenter, fontSize = 16 };
-                st.normal.textColor = new Color(color.r, color.g, color.b, Mathf.Clamp01(1.6f - age));
-                GUI.Label(new Rect(p.x - 100, p.y - 12, 200, 24), "<b>" + text + "</b>", st);
+                floatStyle.normal.textColor = new Color(color.r, color.g, color.b, Mathf.Clamp01(1.6f - age));
+                GUI.Label(new Rect(p.x - 100, p.y - 12, 200, 24), "<b>" + text + "</b>", floatStyle);
             }
         }
 
@@ -149,7 +172,7 @@ namespace StellarIndustries.Unity.UI
                 var tip = d.Description + "\nCost: " + Fmt.Amounts(sim.Db, sim.Construction.BuildCost(d, w.LocationId)) + "\nFootprint " + d.FootprintM + " m";
                 if (GUI.Button(cr, new GUIContent("", tip), afford ? Theme.Button : Theme.Nav)) { w.Build.Select(d); Gx.Changed(); }
                 GUI.Label(new Rect(cr.x + 10, cr.y + 8, 150, 22), "<b>" + d.Name + "</b>", Theme.Small);
-                GUI.Label(new Rect(cr.x + 10, cr.y + 30, 150, 36), "<size=10>" + Fmt.Cost(sim, w.LocationId, sim.Construction.BuildCost(d, w.LocationId)) + "</size>", new GUIStyle(Theme.Small) { wordWrap = true });
+                GUI.Label(new Rect(cr.x + 10, cr.y + 30, 150, 36), "<size=10>" + Fmt.Cost(sim, w.LocationId, sim.Construction.BuildCost(d, w.LocationId)) + "</size>", wrapSmall);
                 GUI.Label(new Rect(cr.x + 10, cr.y + 66, 150, 20), "<size=11>" + power + "</size>", Theme.Small);
                 x += 168;
             }

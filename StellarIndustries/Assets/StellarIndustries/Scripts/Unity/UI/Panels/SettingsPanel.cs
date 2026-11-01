@@ -24,6 +24,30 @@ namespace StellarIndustries.Unity.UI.Panels
             GUILayout.EndHorizontal();
             st.ShowHints = GUILayout.Toggle(st.ShowHints, " Show objective hints", Theme.Label);
 
+            GUILayout.Label("Graphics", Theme.Header);
+            GUILayout.Label("Detected: " + Performance.GraphicsQuality.HardwareSummary + "  ->  recommended " + Performance.GraphicsQuality.Detected, Theme.DimLabel);
+            GUILayout.BeginHorizontal();
+            foreach (Performance.GfxQuality q in System.Enum.GetValues(typeof(Performance.GfxQuality)))
+                if (GUILayout.Button(q.ToString(), Performance.GraphicsQuality.Level == q ? Theme.NavActive : Theme.Button, GUILayout.Width(96), GUILayout.Height(32)))
+                { Performance.GraphicsQuality.Set(q); Gx.Changed(); }
+            GUILayout.EndHorizontal();
+            GUILayout.Label(new[]
+            {
+                "Low: half-resolution textures, no shadows or MSAA, simpler terrain, fewer drones and particles, 30 fps. Real planets, atmospheres and UI stay.",
+                "Medium: hard shadows, 2x MSAA, cloud layer, moderate decoration and drone counts.",
+                "High: soft shadows, 4x MSAA, full terrain and decoration detail.",
+                "Ultra: 8x MSAA, long shadow distance, extra-dense terrain and decoration, 40 drones.",
+            }[(int)Performance.GraphicsQuality.Level], Theme.DimLabel);
+            bool ad = GUILayout.Toggle(Performance.GraphicsQuality.Adaptive, " Adaptive quality (lower the preset automatically if the frame rate stays low)", Theme.Label);
+            bool bat = GUILayout.Toggle(Performance.GraphicsQuality.BatterySaver, " Battery saver (10 fps in the background, 30 fps when idle in orbit view)", Theme.Label);
+            bool fps = GUILayout.Toggle(Performance.GraphicsQuality.ShowFps, " Show FPS counter", Theme.Label);
+            if (ad != Performance.GraphicsQuality.Adaptive || bat != Performance.GraphicsQuality.BatterySaver || fps != Performance.GraphicsQuality.ShowFps)
+            {
+                Performance.GraphicsQuality.Adaptive = ad; Performance.GraphicsQuality.BatterySaver = bat; Performance.GraphicsQuality.ShowFps = fps;
+                Performance.GraphicsQuality.Save();
+            }
+            if (UI.GC.Perf != null) GUILayout.Label("Now: " + UI.GC.Perf.Fps.ToString("0") + " fps · slowest frame " + UI.GC.Perf.WorstFrameMs.ToString("0") + " ms", Theme.DimLabel);
+
             GUILayout.Label("Saving", Theme.Header);
             GUILayout.BeginHorizontal();
             GUILayout.Label("Autosave every", Theme.Label, GUILayout.Width(160));

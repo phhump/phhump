@@ -36,7 +36,7 @@ namespace StellarIndustries.Core.Simulation
             Inventory = new InventorySystem(db, state, Modifiers);
             Placement = new PlacementSystem(db, state);
             Production = new ProductionSystem(db, state, Modifiers, Inventory) { Placement = Placement };
-            Construction = new ConstructionSystem(db, state, Inventory, Modifiers, Events, () => { Production.MarkDirty(); Inventory.InvalidateStorage(); }, Placement);
+            Construction = new ConstructionSystem(db, state, Inventory, Modifiers, Events, () => { Production.MarkDirty(); Inventory.InvalidateStorage(); Placement.MarkDirty(); }, Placement);
             Research = new ResearchSystem(db, state, Inventory, Modifiers, Events, () => { Modifiers.Rebuild(); Inventory.InvalidateStorage(); });
             Missions = new MissionSystem(db, state, Inventory, Modifiers, Events);
             Logistics = new LogisticsSystem(db, state, Inventory, Missions);
