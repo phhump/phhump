@@ -64,19 +64,19 @@ namespace StellarIndustries.Core.Data
 
             // --- star systems (distance, RA/Dec, spectral type, luminosity) ----------------
             db.Add(new StarSystemDef { Id = "sol", Name = "Sol", DistanceLy = 0, SpectralType = "G2V", LuminositySun = 1, ColorHex = "#FFE9A8", Description = "Home." });
-            db.Add(new StarSystemDef { Id = "alpha_centauri", Name = "Alpha Centauri", DistanceLy = 4.2465, RightAscensionDeg = Ra(14, 29, 42.9487), DeclinationDeg = Dec(-62, 40, 46.141),
+            db.Add(new StarSystemDef { Id = "alpha_centauri", RadiusSun = 0.154, Name = "Alpha Centauri", DistanceLy = 4.2465, RightAscensionDeg = Ra(14, 29, 42.9487), DeclinationDeg = Dec(-62, 40, 46.141),
                 SpectralType = "M5.5V (Proxima) + G2V/K1V (A/B)", LuminositySun = 0.00155, ColorHex = "#FF8A5C",
                 Description = "Nearest star system. Proxima Centauri is a flare star orbiting the Sun-like pair Alpha Centauri A and B (4.344 ly).",
                 Notes = "Proxima b and d are confirmed. Proxima c is disputed. Alpha Centauri Ab is an unconfirmed candidate seen by JWST." });
-            db.Add(new StarSystemDef { Id = "barnard", Name = "Barnard's Star", DistanceLy = 5.9629, RightAscensionDeg = Ra(17, 57, 48.49847), DeclinationDeg = Dec(4, 41, 36.1139),
+            db.Add(new StarSystemDef { Id = "barnard", RadiusSun = 0.187, Name = "Barnard's Star", DistanceLy = 5.9629, RightAscensionDeg = Ra(17, 57, 48.49847), DeclinationDeg = Dec(4, 41, 36.1139),
                 SpectralType = "M4.0V", LuminositySun = 0.0034, ColorHex = "#FF7043",
                 Description = "Second-nearest single star. Four small planets confirmed (2024-2025), all closer than the habitable zone.",
                 Notes = "A 2018 super-Earth candidate was refuted in 2021." });
-            db.Add(new StarSystemDef { Id = "eps_eridani", Name = "Epsilon Eridani", DistanceLy = 10.475, RightAscensionDeg = Ra(3, 32, 55.84496), DeclinationDeg = Dec(-9, 27, 29.7312),
+            db.Add(new StarSystemDef { Id = "eps_eridani", RadiusSun = 0.735, Name = "Epsilon Eridani", DistanceLy = 10.475, RightAscensionDeg = Ra(3, 32, 55.84496), DeclinationDeg = Dec(-9, 27, 29.7312),
                 SpectralType = "K2V", LuminositySun = 0.326, ColorHex = "#FFC27A",
                 Description = "Young orange star with a Jupiter-like planet, warm dust (3-20 AU) and a Kuiper-belt analogue at 70 AU.",
                 Notes = "The gap in the debris disc between 20 and 70 AU suggests further, undiscovered planets." });
-            db.Add(new StarSystemDef { Id = "trappist1", Name = "TRAPPIST-1", DistanceLy = 40.7, RightAscensionDeg = Ra(23, 6, 29.283), DeclinationDeg = Dec(-5, 2, 28.59),
+            db.Add(new StarSystemDef { Id = "trappist1", RadiusSun = 0.12, Name = "TRAPPIST-1", DistanceLy = 40.7, RightAscensionDeg = Ra(23, 6, 29.283), DeclinationDeg = Dec(-5, 2, 28.59),
                 SpectralType = "Ultra-cool red dwarf", LuminositySun = 0.000566, ColorHex = "#E0563B",
                 Description = "Seven Earth-sized planets; e, f and g orbit in the habitable zone.",
                 Notes = "JWST (2025) could not yet decide whether TRAPPIST-1e has an atmosphere." });

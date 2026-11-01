@@ -18,6 +18,12 @@ namespace StellarIndustries.Unity.UI
     {
         public GameController GC { get; private set; }
         public SpaceView View { get; private set; }
+        public Surface.SurfaceWorld Surface { get; private set; }
+        /// <summary>Player wants to be on the surface (engineer mode) rather than in the orbital view.</summary>
+        public bool WantSurface = true;
+        /// <summary>Command center (all management screens) open on top of the surface.</summary>
+        public bool CommandOpen;
+        SurfaceHud hud;
         public GameSimulation Sim => GC != null ? GC.Sim : null;
 
         public float Scale { get; private set; } = 1;
@@ -40,9 +46,16 @@ namespace StellarIndustries.Unity.UI
         const float TopH = 62, NavW = 176, Gap = 10;
         bool locationMenuOpen;
 
-        public void Init(GameController gc, SpaceView view)
+        public void Init(GameController gc, SpaceView view, Surface.SurfaceWorld surface = null)
         {
-            GC = gc; View = view;
+            GC = gc; View = view; Surface = surface;
+            hud = new SurfaceHud(this);
+            if (surface != null) surface.OpenScreen += screen =>
+            {
+                CommandOpen = true;
+                if (screen == "research") Open<ResearchPanel>(); else if (screen == "missions") Open<MissionsPanel>();
+            };
+            gc.SimulationStopped += () => { Surface?.Exit(); CommandOpen = false; };
             menu = new MainMenu(this);
             panels = new Panel[]
             {
@@ -50,7 +63,7 @@ namespace StellarIndustries.Unity.UI
                 new SpacecraftPanel(this), new MissionsPanel(this), new LogisticsPanel(this), new MapPanel(this),
                 new StatisticsPanel(this), new SettingsPanel(this),
             };
-            gc.SimulationStarted += s => { s.Events.Notification += OnNotification; Active = 0; toasts.Clear(); Log.Clear(); };
+            gc.SimulationStarted += s => { s.Events.Notification += OnNotification; Active = 0; toasts.Clear(); Log.Clear(); WantSurface = true; CommandOpen = false; };
         }
 
         void OnNotification(string text, NotificationLevel level)
@@ -90,10 +103,30 @@ namespace StellarIndustries.Unity.UI
 
             if (!panels[Active].IsUnlocked) Active = 0;
             var panel = panels[Active];
+            // Panels that need the orbital/galaxy view take the player off the surface.
+            if (CommandOpen && panel.ViewMode != SpaceView.ViewMode.Location && Surface != null && Surface.Active) WantSurface = false;
+            SyncSurface();
+            if (Surface != null && Surface.Active && !CommandOpen)
+            {
+                Surface.SurfaceInput_SetBlocked(!string.IsNullOrEmpty(confirmText) || GC.PendingOfflineReport != null || GC.PendingWarnings.Count > 0 || locationMenuOpen);
+                HandleSurfaceKeys();
+                DrawTopBar();
+                hud.Draw(Surface);
+                DrawObjective();
+                DrawToasts();
+                DrawLocationMenu();
+                DrawOfflineReport();
+                DrawWarnings();
+                DrawConfirm();
+                DrawTooltip();
+                Surface.SurfaceInput_Feed(Event.current, Scale);
+                return;
+            }
+            if (Surface != null && Surface.Active) { Surface.SurfaceInput_SetBlocked(true); HandleSurfaceKeys(); }
             float width = Mathf.Min(panel.PreferredWidth, VW - NavW - Gap * 3 - 220);
             PanelRect = new Rect(NavW + Gap * 2, TopH + Gap, Mathf.Max(320, width), VH - TopH - Gap * 2);
             View.ViewportLeft = (PanelRect.xMax + Gap) / VW;
-            View.SetMode(panel.ViewMode);
+            if (!View.Suspended) View.SetMode(panel.ViewMode);
 
             HandleKeys();
             DrawTopBar();
@@ -112,6 +145,25 @@ namespace StellarIndustries.Unity.UI
             DrawWarnings();
             DrawConfirm();
             DrawTooltip();
+        }
+
+        void SyncSurface()
+        {
+            if (Surface == null || Event.current.type != EventType.Layout) return;
+            bool want = WantSurface && Sim != null;
+            if (want && (!Surface.Active || Surface.LocationId != Sim.State.CurrentLocation)) Surface.Enter(Sim, Sim.State.CurrentLocation);
+            else if (!want && Surface.Active) Surface.Exit();
+            View.Suspended = Surface.Active;
+        }
+
+        void HandleSurfaceKeys()
+        {
+            var e = Event.current;
+            if (e.type != EventType.KeyDown || GUIUtility.keyboardControl != 0) return;
+            // Reset held keys on every mode switch: a key released while the command center is open would otherwise stick.
+            if (e.keyCode == KeyCode.Tab) { CommandOpen = !CommandOpen; Surface.SurfaceInput_Clear(); e.Use(); Gx.Changed(); }
+            else if (e.keyCode == KeyCode.M) { WantSurface = !WantSurface; CommandOpen = false; Surface.SurfaceInput_Clear(); e.Use(); Gx.Changed(); }
+            else if (e.keyCode == KeyCode.Escape && CommandOpen) { CommandOpen = false; Surface.SurfaceInput_Clear(); e.Use(); Gx.Changed(); }
         }
 
         void HandleKeys()
@@ -162,8 +214,13 @@ namespace StellarIndustries.Unity.UI
                 GUI.Label(new Rect(x, 27, 210, 22), new GUIContent(Gx.Colored(waiting != null ? "waiting for materials" : "idle - choose a project", Theme.Warn), (waiting != null ? waiting.Name + " - " : "") + why), Theme.Label);
             }
             x += 228;
-            if (x + 120 < VW - 90) Stat(x, 120, "MISSIONS", Sim.State.ActiveMissions.Count + " in flight");
+            if (x + 120 < VW - 310) Stat(x, 120, "MISSIONS", Sim.State.ActiveMissions.Count + " in flight");
             if (GUI.Button(new Rect(VW - 86, 14, 72, 34), new GUIContent("Save", "Save now (F5)"), Theme.Button)) { GC.Save(); Notify("Game saved", NotificationLevel.Success); }
+            bool onSurface = Surface != null && Surface.Active;
+            if (Surface != null && GUI.Button(new Rect(VW - 300, 14, 120, 34), new GUIContent(onSurface ? "Orbit view" : "Go to surface", "Hotkey M"), onSurface ? Theme.Button : Theme.Accent))
+            { WantSurface = !onSurface; CommandOpen = false; Gx.Changed(); }
+            if (onSurface && GUI.Button(new Rect(VW - 172, 14, 80, 34), new GUIContent(CommandOpen ? "Close" : "Command", "All management screens (Tab)"), CommandOpen ? Theme.NavActive : Theme.Button))
+            { CommandOpen = !CommandOpen; Surface.SurfaceInput_Clear(); Gx.Changed(); }
         }
 
         float Stat(float x, float w, string label, string value)
@@ -279,6 +336,7 @@ namespace StellarIndustries.Unity.UI
         void HandleViewInput()
         {
             var e = Event.current;
+            if (View.Suspended) return;
             if (!string.IsNullOrEmpty(confirmText) || GC.PendingOfflineReport != null) return;
             switch (e.type)
             {

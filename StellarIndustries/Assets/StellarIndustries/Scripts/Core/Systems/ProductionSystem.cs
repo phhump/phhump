@@ -17,6 +17,8 @@ namespace StellarIndustries.Core.Systems
         readonly GameState state;
         readonly ModifierSystem mods;
         readonly InventorySystem inv;
+        /// <summary>Optional: enforces that extraction buildings stand on a matching deposit field.</summary>
+        public PlacementSystem Placement;
         readonly Dictionary<string, List<BuildingInstance>> byLocation = new Dictionary<string, List<BuildingInstance>>();
         bool dirty = true;
 
@@ -129,7 +131,7 @@ namespace StellarIndustries.Core.Systems
                 if (!string.IsNullOrEmpty(recipe.RequiredDeposit))
                 {
                     var dep = locDef.Deposits.Find(d => d.ResourceId == recipe.RequiredDeposit);
-                    if (dep == null) { b.Status = BuildingStatus.NoDeposit; b.EffectiveSpeed = 0; continue; }
+                    if (dep == null || (Placement != null && !Placement.OnDeposit(b, recipe.RequiredDeposit))) { b.Status = BuildingStatus.NoDeposit; b.EffectiveSpeed = 0; continue; }
                     richness = dep.Richness;
                     mult = extrMult;
                 }

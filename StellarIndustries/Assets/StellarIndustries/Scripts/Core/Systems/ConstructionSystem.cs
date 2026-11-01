@@ -15,9 +15,10 @@ namespace StellarIndustries.Core.Systems
         readonly ModifierSystem mods;
         readonly GameEvents events;
         readonly Action onChanged;
+        readonly PlacementSystem placement;
 
-        public ConstructionSystem(GameDatabase db, GameState state, InventorySystem inv, ModifierSystem mods, GameEvents events, Action onChanged)
-        { this.db = db; this.state = state; this.inv = inv; this.mods = mods; this.events = events; this.onChanged = onChanged; }
+        public ConstructionSystem(GameDatabase db, GameState state, InventorySystem inv, ModifierSystem mods, GameEvents events, Action onChanged, PlacementSystem placement = null)
+        { this.db = db; this.state = state; this.inv = inv; this.mods = mods; this.events = events; this.onChanged = onChanged; this.placement = placement; }
 
         public bool TechDone(string techId) => string.IsNullOrEmpty(techId) || state.Research.Completed.Contains(techId);
         public bool IsUnlocked(BuildingDef def) => TechDone(def.RequiredTech);
@@ -25,6 +26,15 @@ namespace StellarIndustries.Core.Systems
 
         public bool HasDeposit(string locationId, string resourceId)
             => db.Location(locationId)?.Deposits.Any(d => d.ResourceId == resourceId) ?? false;
+
+        /// <summary>Recipes a specific placed building can run: extraction only from the deposit field it stands on.</summary>
+        public List<RecipeDef> ValidRecipes(BuildingInstance b)
+        {
+            var def = db.Building(b.DefId);
+            var list = ValidRecipes(def, b.LocationId);
+            if (placement == null) return list;
+            return list.Where(r => string.IsNullOrEmpty(r.RequiredDeposit) || placement.OnDeposit(b, r.RequiredDeposit)).ToList();
+        }
 
         public List<RecipeDef> ValidRecipes(BuildingDef def, string locationId)
         {
@@ -83,13 +93,39 @@ namespace StellarIndustries.Core.Systems
             return b;
         }
 
-        /// <summary>Places without cost (start conditions, tests).</summary>
+        /// <summary>Places without cost (start conditions, tests). Position is chosen automatically.</summary>
         public BuildingInstance Place(BuildingDef def, string locationId, string recipeId = null)
         {
             var valid = ValidRecipes(def, locationId);
             string rec = recipeId != null && def.Recipes.Contains(recipeId) ? recipeId : (valid.Count > 0 ? valid[0].Id : (def.Recipes.Count > 0 ? def.Recipes[0] : ""));
             var b = new BuildingInstance { Uid = state.TakeUid(), DefId = def.Id, LocationId = locationId, RecipeId = rec };
             state.Buildings.Add(b);
+            placement?.AutoPlace(b);
+            Changed(b.Uid);
+            return b;
+        }
+
+        /// <summary>Null when the player may build here (tech, location, cost, spot); otherwise the reason.</summary>
+        public string BuildAtProblem(string defId, string locationId, double x, double z)
+        {
+            var def = db.Building(defId);
+            if (def == null) return "Unknown building";
+            if (!CanBuild(def, locationId, out var reason)) return reason;
+            return placement?.SpotProblem(def, locationId, x, z);
+        }
+
+        /// <summary>Player placement: build at a chosen spot and orientation (the engineer's build mode).</summary>
+        public BuildingInstance BuildAt(string defId, string locationId, double x, double z, double rotationDeg, string recipeId = null)
+        {
+            if (BuildAtProblem(defId, locationId, x, z) != null) return null;
+            var def = db.Building(defId);
+            inv.TryPay(locationId, BuildCost(def, locationId));
+            var b = new BuildingInstance { Uid = state.TakeUid(), DefId = def.Id, LocationId = locationId, PosX = x, PosZ = z, RotationDeg = rotationDeg, Placed = true };
+            var valid = ValidRecipes(b);
+            b.RecipeId = recipeId != null && valid.Any(r => r.Id == recipeId) ? recipeId : (valid.Count > 0 ? valid[0].Id : (def.Recipes.Count > 0 ? def.Recipes[0] : ""));
+            state.Buildings.Add(b);
+            state.Stats.BuildingsBuilt++;
+            events.Notify("Built " + def.Name + " on " + db.Location(locationId).Name, NotificationLevel.Success);
             Changed(b.Uid);
             return b;
         }
@@ -138,7 +174,7 @@ namespace StellarIndustries.Core.Systems
         {
             var b = Find(uid);
             var def = b != null ? db.Building(b.DefId) : null;
-            if (def == null || !ValidRecipes(def, b.LocationId).Any(r => r.Id == recipeId)) return false;
+            if (def == null || !ValidRecipes(b).Any(r => r.Id == recipeId)) return false;
             if (b.RecipeId != recipeId) { b.RecipeId = recipeId; b.Progress = 0; b.Status = BuildingStatus.Idle; }
             return true;
         }
@@ -148,7 +184,7 @@ namespace StellarIndustries.Core.Systems
             var b = Find(uid);
             var def = b != null ? db.Building(b.DefId) : null;
             if (def == null) return;
-            var valid = ValidRecipes(def, b.LocationId);
+            var valid = ValidRecipes(b);
             if (valid.Count == 0) return;
             int idx = valid.FindIndex(r => r.Id == b.RecipeId);
             idx = ((idx + dir) % valid.Count + valid.Count) % valid.Count;

@@ -9,6 +9,11 @@
 | 5 — Interstellar | **started** | Done: 4 real star systems / 5 confirmed exoplanets, laser-sail surveys, fusion seed ships, colonies, star map. Open: procedurally generated systems beyond ~50 ly, intra-system logistics at other stars, generation ships. |
 | 6 — Endgame | open | Dyson swarms, planetary dismantling, habitats, megastructures. |
 
+## Engineer mode (done, first version)
+Third-person engineer with real per-world gravity, rover, build mode with deposit fields, interaction terminals, HUD, minimap.
+Open: animated character model, footprints/dust, day-night cycle, conveyor belts between buildings, drones for automation,
+building upgrades visible on the model, sound.
+
 ## Next tasks (suggested order)
 1. Run in the Unity Editor, fix any runtime/layout issues, tune UI sizes.
 2. **Excavation system**: depth levels per location (`ExcavationState`: depth, progress), deeper layers add deposits/richness; visual crater rings on the planet.
@@ -20,7 +25,8 @@
 8. Balance pass with the progression bot (`Tests/Shared/ProgressionBot.cs`) as a regression benchmark.
 
 ## Known limitations of the test build
-- Not yet executed in the Unity Editor here (compiled against reference assemblies + headless tests only).
+- Not yet executed in the Unity Editor here (compiled against reference assemblies + headless tests only). Character feel,
+  camera and collisions of the engineer mode in particular need play-testing in Unity.
 - Planet excavation, terraforming, batteries, asteroid belt and outer planets are not implemented yet.
 - For standalone builds with the built-in pipeline, add *Standard* to *Project Settings → Graphics → Always Included Shaders* if objects appear pink (Shader.Find).
 - IMGUI interface (modernised); building models are still primitives.

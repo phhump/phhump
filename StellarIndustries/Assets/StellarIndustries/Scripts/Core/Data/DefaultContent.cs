@@ -29,6 +29,7 @@ namespace StellarIndustries.Core.Data
             AddMissions(db);
             AddAchievements(db);
             AddInterstellar(db);
+            AddSurfaceData(db);
             db.Start = new StartDef
             {
                 StartLocation = "earth",

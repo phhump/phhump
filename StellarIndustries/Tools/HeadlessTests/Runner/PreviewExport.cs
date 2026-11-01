@@ -23,6 +23,8 @@ public static class PreviewExport
         var root = new Dictionary<string, object> { ["midgame"] = Snapshot(sim, "earth") };
         for (; t < 240 * 60; t++) { if (t % 5 == 0) bot.Decide(); sim.Tick(1); }
         root["moon"] = Snapshot(sim, "moon");
+        root["surface_earth"] = Surface(sim, "earth");
+        root["surface_moon"] = Surface(sim, "moon");
         // Late-game developer scenario for the star map: all techs, Alpha Centauri surveyed, Proxima b settled, a seed ship en route to TRAPPIST-1.
         foreach (var tech in sim.Db.Techs) sim.Research.Complete(tech.Id);
         foreach (var sys in new[] { "alpha_centauri", "barnard", "eps_eridani", "trappist1" }) sim.State.MissionCompletions["survey_" + sys] = 1;
@@ -43,6 +45,25 @@ public static class PreviewExport
         File.WriteAllText(path, Json.Serialize(root));
         Console.WriteLine("Preview data written to " + path + " (" + sim.State.Buildings.Count + " buildings)");
         return 0;
+    }
+
+    static Dictionary<string, object> Surface(GameSimulation sim, string locId)
+    {
+        var def = sim.Db.Location(locId);
+        return new Dictionary<string, object>
+        {
+            ["half"] = def.SurfaceHalfSizeM, ["ground"] = def.GroundColorHex, ["sky"] = def.SkyColorHex, ["relief"] = def.TerrainReliefM, ["craters"] = def.CraterDensity,
+            ["gravity"] = def.Gravity, ["temp"] = def.TemperatureC, ["atm"] = def.Atmosphere, ["name"] = def.Name,
+            ["patches"] = sim.Placement.Patches(locId).Select(p => (object)new Dictionary<string, object> { ["res"] = p.ResourceId, ["name"] = sim.Db.ResourceName(p.ResourceId),
+                ["color"] = sim.Db.Resource(p.ResourceId).ColorHex, ["x"] = p.X, ["z"] = p.Z, ["r"] = p.Radius, ["rich"] = p.Richness }).ToList(),
+            ["buildings"] = sim.State.Buildings.Where(b => b.LocationId == locId && b.Placed).Select(b => (object)new Dictionary<string, object> {
+                ["id"] = b.DefId, ["name"] = sim.Db.Building(b.DefId).Name, ["x"] = b.PosX, ["z"] = b.PosZ, ["rot"] = b.RotationDeg, ["fp"] = sim.Db.Building(b.DefId).FootprintM,
+                ["color"] = sim.Db.Building(b.DefId).ColorHex, ["status"] = b.Status.ToString(), ["lv"] = b.Level, ["recipe"] = sim.Db.Recipe(b.RecipeId)?.Name ?? "",
+                ["ore"] = sim.Db.Resource(sim.Db.Recipe(b.RecipeId)?.RequiredDeposit)?.ColorHex ?? "#888888" }).ToList(),
+            ["inv"] = sim.Db.Resources.Where(r => !r.IsGlobal && sim.Inventory.Get(locId, r.Id) >= 1).OrderBy(r => r.Category).Take(14).Select(r => (object)new Dictionary<string, object> {
+                ["name"] = r.Name, ["color"] = r.ColorHex, ["amt"] = sim.Inventory.Get(locId, r.Id), ["cap"] = sim.Inventory.Capacity(locId, r.Id),
+                ["rate"] = sim.State.Location(locId).Rates.TryGetValue(r.Id, out var rt) ? rt : 0.0 }).ToList(),
+        };
     }
 
     static Dictionary<string, object> Snapshot(GameSimulation sim, string locId)

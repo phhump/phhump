@@ -13,3 +13,6 @@ Exoplanet surfaces are **artist's impressions**: no images of these worlds exist
 
 ## Data
 NASA NSSDCA planetary fact sheets; Wikipedia articles listed in `Docs/SCIENCE.md`.
+
+## Tools (not part of the game build)
+three.js (MIT licence, `Tools/PreviewRender/vendor/three-LICENSE.txt`) — used only to render preview images.

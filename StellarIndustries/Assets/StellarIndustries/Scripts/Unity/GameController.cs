@@ -49,8 +49,10 @@ namespace StellarIndustries.Unity
             if (view == null) view = gameObject.AddComponent<SpaceView>();
             var ui = GetComponent<GameUI>();
             if (ui == null) ui = gameObject.AddComponent<GameUI>();
+            var surface = GetComponent<Surface.SurfaceWorld>();
+            if (surface == null) surface = gameObject.AddComponent<Surface.SurfaceWorld>();
             view.Init(this);
-            ui.Init(this, view);
+            ui.Init(this, view, surface);
         }
 
         public void NewGame(int slot, string name)

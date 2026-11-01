@@ -57,6 +57,8 @@ namespace StellarIndustries.Unity.Views
         readonly Dictionary<string, Texture2D> planetTextures = new Dictionary<string, Texture2D>();
 
         public string FocusBody;
+        /// <summary>True while the engineer is on the surface: the orbital views are hidden and the camera is released.</summary>
+        public bool Suspended;
 
         public void Init(GameController controller)
         {
@@ -542,6 +544,8 @@ namespace StellarIndustries.Unity.Views
 
         void Update()
         {
+            if (root.gameObject.activeSelf == Suspended) root.gameObject.SetActive(!Suspended);
+            if (Suspended) return;
             float dt = Time.deltaTime;
             if (sim != null && sim.State.CurrentLocation != shownLocation) ShowLocation(sim.State.CurrentLocation);
 

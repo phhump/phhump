@@ -4,12 +4,20 @@ An idle / incremental space-industry simulator for Unity. You start with one min
 one wind turbine on Earth, research rocketry, build your first rocket, reach orbit, land on the Moon,
 build a lunar industry from local resources and — with enough research — head for Mars.
 
-> **Status:** playable test build. The simulation core is compiled and covered by 31 automated
+> **Status:** playable test build. The simulation core is compiled and covered by 34 automated
 > tests (including a bot that plays from scratch to helium-3 mining on the Moon). The Unity layer
 > compiles against UnityEngine 2021.3 LTS reference assemblies, but it has **not yet been run
 > inside the Unity Editor** in this environment — please report anything that looks off.
 
 ## Preview
+
+**Engineer mode (new):** you play an engineer on the surface and place every building yourself.
+
+| Managing a smelter on Earth | Build mode: placing a research lab | Drilling regolith by hand on the Moon (Earth in the sky) |
+|---|---|---|
+| ![Earth](Docs/preview/surface_earth.png) | ![Build](Docs/preview/surface_earth_build.png) | ![Moon](Docs/preview/surface_moon.png) |
+
+These three are three.js renders of the real simulation layout (building positions, deposit fields), not Unity screenshots.
 
 Preview renders from **real simulation data** with the game's **real textures and fonts** — drawn outside Unity, so
 **not Unity screenshots** (lighting/shading approximated, see `Tools/PreviewRender`).
@@ -34,6 +42,20 @@ Preview renders from **real simulation data** with the game's **real textures an
 
 **Option B — copy into an existing project**
 Copy `Assets/StellarIndustries` into the `Assets` folder of any 3D project (built-in render pipeline or URP).
+
+## Controls (engineer mode)
+| Key | Action |
+|---|---|
+| W A S D | walk (rover: drive / steer) |
+| Shift / Space | sprint / jump — jump height follows real gravity (Moon ~6x higher than on Earth) |
+| Right mouse drag · wheel | rotate / zoom camera |
+| B | build palette → choose → place with left click, R rotates, Esc cancels |
+| E | interact: manage building, open research terminal (labs), mission control (rocket pad), enter/leave rover |
+| F (hold) | drill a deposit field by hand |
+| Tab | command center (all management screens over the world) |
+| M | switch between surface (engineer) and orbit view |
+
+Mines and other extractors must stand **on a matching deposit field** (coloured rings in the terrain); buildings keep ~5 m walkways.
 
 ## How to play
 | Step | What to do |

@@ -23,6 +23,7 @@ namespace StellarIndustries.Core.Simulation
         public readonly MissionSystem Missions;
         public readonly LogisticsSystem Logistics;
         public readonly AchievementSystem Achievements;
+        public readonly PlacementSystem Placement;
 
         double rateTimer, slowTimer;
 
@@ -33,12 +34,14 @@ namespace StellarIndustries.Core.Simulation
             SaveSanitizer.Sanitize(state, db, null);
             Modifiers = new ModifierSystem(db, state);
             Inventory = new InventorySystem(db, state, Modifiers);
-            Production = new ProductionSystem(db, state, Modifiers, Inventory);
-            Construction = new ConstructionSystem(db, state, Inventory, Modifiers, Events, () => { Production.MarkDirty(); Inventory.InvalidateStorage(); });
+            Placement = new PlacementSystem(db, state);
+            Production = new ProductionSystem(db, state, Modifiers, Inventory) { Placement = Placement };
+            Construction = new ConstructionSystem(db, state, Inventory, Modifiers, Events, () => { Production.MarkDirty(); Inventory.InvalidateStorage(); }, Placement);
             Research = new ResearchSystem(db, state, Inventory, Modifiers, Events, () => { Modifiers.Rebuild(); Inventory.InvalidateStorage(); });
             Missions = new MissionSystem(db, state, Inventory, Modifiers, Events);
             Logistics = new LogisticsSystem(db, state, Inventory, Missions);
             Achievements = new AchievementSystem(db, state, Events);
+            Placement.PlaceAllUnplaced(); // saves from before the surface update
         }
 
         public static GameState CreateNewState(GameDatabase db, string name, uint seed)

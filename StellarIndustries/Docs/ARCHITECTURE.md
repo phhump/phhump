@@ -49,3 +49,18 @@ PlanetManager → `LocationDef` data + `IndustriesPanel`. Managers were merged w
 ## Performance notes
 - ~100 buildings simulate in microseconds per tick. For thousands, the next step is aggregating identical buildings (same def/recipe/level) into counted stacks — `ProductionSystem` is the only place to change.
 - Building lists per location are cached and re-sorted only when buildings change.
+
+## Engineer mode (surface)
+- **Core:** `PlacementSystem` owns all spatial rules — deterministic deposit fields per location, footprints + 2.5 m clearance,
+  landing-pad exclusion, survey bounds, "extractors on matching field". `ConstructionSystem.BuildAt` is the player's build call;
+  `Place`/`Build` without coordinates auto-place (start kit, quick-build UI, bot, old saves). Placed extractors can only run
+  recipes of the field under them; `ProductionSystem` reports `NoDeposit` otherwise. All covered by tests.
+- **Unity (`Scripts/Unity/Surface`):** `SurfaceWorld` (terrain, sky, lighting, fields, structure models, interaction),
+  `EngineerController` (CharacterController, real gravity, low-g traction), `RoverController` (terrain-following vehicle),
+  `SurfaceCamera`, `BuildMode` (ghost preview, raycast on terrain, rules from the core), `StructureFactory` (models),
+  `SurfaceHud` (IMGUI HUD). `SpaceView` is suspended while the surface is active.
+- **Input decision:** `SurfaceInput` is fed from IMGUI events at the end of `OnGUI` (after UI controls consumed theirs), so world
+  clicks never go through HUD buttons and the game works with both the legacy Input Manager and the new Input System
+  (`UnityEngine.Input` is never called). Held keys are cleared whenever the command center opens or the mode switches.
+- **Layers:** buildings, engineer and rover use layer 2 (Ignore Raycast) so placement raycasts only hit terrain, while the
+  CharacterController still collides with buildings.

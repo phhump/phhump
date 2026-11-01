@@ -71,6 +71,8 @@ namespace StellarIndustries.Core.Data
         public string ColorHex = "#8899AA";
         /// <summary>Visual hint for the placeholder renderer: cube, cylinder, dome, tower, panel, pad.</summary>
         public string Shape = "cube";
+        /// <summary>Diameter of the building's footprint on the surface, in metres.</summary>
+        public double FootprintM = 12;
     }
 
     [Serializable]
@@ -198,6 +200,8 @@ namespace StellarIndustries.Core.Data
         public double DeclinationDeg;
         public string SpectralType = "";
         public double LuminositySun = 1;
+        /// <summary>Star radius in solar radii (apparent size of the star in the sky).</summary>
+        public double RadiusSun = 1;
         public string ColorHex = "#FFF4E0";
         /// <summary>Scientific status notes (candidates, disputed planets).</summary>
         public string Notes = "";
@@ -251,6 +255,14 @@ namespace StellarIndustries.Core.Data
         /// <summary>Sidereal rotation period in hours (visual spin speed).</summary>
         public double RotationPeriodHours = 24;
         public bool ArtistImpression;
+        /// <summary>Half-width (m) of the buildable surface area around the landing site.</summary>
+        public double SurfaceHalfSizeM = 300;
+        public string GroundColorHex = "#7A7A7A";
+        /// <summary>Daytime sky colour; black for airless bodies.</summary>
+        public string SkyColorHex = "#000000";
+        /// <summary>Max terrain relief (m) and crater density (0..1) for the procedural surface.</summary>
+        public double TerrainReliefM = 6;
+        public double CraterDensity;
     }
 
     public enum MissionType { Launch, Landing, Cargo, Survey }

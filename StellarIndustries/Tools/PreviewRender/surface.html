@@ -1,0 +1,157 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:Disp;src:url(/Assets/StellarIndustries/Resources/Fonts/Rajdhani-SemiBold.ttf)}@font-face{font-family:DispB;src:url(/Assets/StellarIndustries/Resources/Fonts/Rajdhani-Bold.ttf)}
+@font-face{font-family:Body;src:url(/Assets/StellarIndustries/Resources/Fonts/TitilliumWeb-Regular.ttf)}@font-face{font-family:BodyB;src:url(/Assets/StellarIndustries/Resources/Fonts/TitilliumWeb-SemiBold.ttf)}
+:root{--cy:#40e0ff;--or:#ff963c;--tx:#dee9f5;--dim:#8498b0;--good:#46e296;--warn:#ffba3c;--bad:#ff6060}
+body{margin:0;width:1600px;height:900px;overflow:hidden;background:#000;color:var(--tx);font:14px Body,sans-serif;position:relative}
+canvas{position:absolute;inset:0}
+.glass{position:absolute;background:linear-gradient(180deg,rgba(14,23,41,.86),rgba(8,13,25,.9));border:1px solid rgba(90,200,255,.28);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.45)}
+.top{position:absolute;left:0;top:0;right:0;height:62px;background:linear-gradient(180deg,rgba(14,22,40,.9),rgba(6,10,20,.92));display:flex;align-items:center;padding:0 18px;gap:12px}
+.top:after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:linear-gradient(90deg,var(--cy) 0,var(--cy) 35%,rgba(90,200,255,.27) 35%)}
+.logo b{font:24px DispB;color:#fff;display:block;line-height:26px}.logo b i{font-style:normal;color:var(--or)}.logo span{color:var(--dim);font-size:12px}
+.sel{width:210px;height:46px;border-radius:8px;background:linear-gradient(180deg,#1c567a,#12384f);border:1px solid rgba(115,230,255,.85);padding:4px 14px;line-height:18px;position:relative}
+.stat small{display:block;color:var(--dim);font-size:12px}
+.btn{display:inline-block;padding:7px 14px;border-radius:7px;background:linear-gradient(180deg,#24365a,#16223a);border:1px solid rgba(115,205,255,.35);font:13px BodyB}
+.btn.acc{background:linear-gradient(180deg,#ffa852,#e2701c);border-color:rgba(255,217,153,.6);color:#1e0e00}
+.bar{height:16px;border-radius:8px;background:rgba(0,0,0,.5);position:relative;font-size:11px;text-align:center;line-height:16px;overflow:hidden}.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,.25),rgba(255,255,255,0) 55%),var(--c,#40c8ff)}.bar em{position:relative;font-style:normal}
+.dim{color:var(--dim);font-size:12px}
+.badge{position:absolute;left:50%;transform:translateX(-50%);top:70px;background:rgba(255,150,60,.95);color:#1a0d00;font:12px BodyB;padding:4px 14px;border-radius:12px;z-index:9}
+.float{position:absolute;font:16px BodyB;transform:translate(-50%,-50%);text-shadow:0 0 4px #000}
+</style></head><body><div id="ui"></div><div class="badge">PREVIEW RENDER (three.js) · real building positions &amp; deposit fields from the simulation · not a Unity screenshot</div>
+<script type="module">
+import * as THREE from './vendor/three.module.min.js';
+const q=new URLSearchParams(location.search), shot=q.get('s')||'earth';
+const D=await (await fetch('data.json')).json();
+const S=shot.startsWith('moon')?D.surface_moon:D.surface_earth, SN=shot.startsWith('moon')?D.moon:D.midgame;
+const isMoon=shot.startsWith('moon');
+const W=1600,H=900;const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(W,H);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.3;renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;document.body.prepend(renderer.domElement);
+const scene=new THREE.Scene();const C=h=>new THREE.Color(h);
+const sky=C(S.sky);const airless=sky.r+sky.g+sky.b<0.1;scene.background=sky;
+if(!airless)scene.fog=new THREE.FogExp2(C(S.sky).lerp(C('#ffffff'),0.15),0.0018);
+const tl=new THREE.TextureLoader(), T='/Assets/StellarIndustries/Resources/Textures/';
+const sunDir=new THREE.Vector3(-0.55,0.62,-0.56).normalize();
+const sun=new THREE.DirectionalLight(0xffffff,airless?3.2:2.6);sun.position.copy(sunDir).multiplyScalar(300);sun.castShadow=true;sun.shadow.mapSize.set(4096,4096);
+Object.assign(sun.shadow.camera,{left:-160,right:160,top:160,bottom:-160,near:1,far:900});scene.add(sun);
+scene.add(new THREE.HemisphereLight(airless?0x222428:C(S.sky).lerp(C('#ffffff'),.4),airless?0x050505:C(S.ground),airless?0.35:1.25));
+// --- terrain (same idea as SurfaceWorld.HeightAt: fbm relief + craters, flat landing site) ---
+function hash(x,y){const s=Math.sin(x*127.1+y*311.7)*43758.5453;return s-Math.floor(s)}
+function vnoise(x,y){const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);return (hash(xi,yi)*(1-u)+hash(xi+1,yi)*u)*(1-v)+(hash(xi,yi+1)*(1-u)+hash(xi+1,yi+1)*u)*v}
+let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+const craters=[];for(let i=0;i<S.craters*70;i++)craters.push([(rnd()*2-1)*(S.half+300),(rnd()*2-1)*(S.half+300),5+Math.pow(rnd(),2.2)*45]);
+function height(x,z){let h=0,a=1,f=0.0045;for(let i=0;i<4;i++){h+=(vnoise(x*f+31,z*f+17)-.5)*2*a;a*=.45;f*=2.2}h*=S.relief;
+  for(const [cx,cz,r] of craters){const d=Math.hypot(x-cx,z-cz)/r;if(d>1.6)continue;if(d<1)h-=r*.16*(1-d*d);h+=r*.06*Math.exp(-Math.pow((d-1.05)/.17,2))}
+  const s=Math.hypot(x,z);const k=Math.min(1,Math.max(0,(s-18)/40));return h*(k*k*(3-2*k))}
+function groundTex(base){const c=document.createElement('canvas');c.width=c.height=512;const g=c.getContext('2d');const id=g.createImageData(512,512);const b=C(base);
+  for(let y=0;y<512;y++)for(let x=0;x<512;x++){const n=vnoise(x/18,y/18)*.6+vnoise(x/5,y/5)*.4;const gr=Math.random();const s=.72+n*.42+(gr-.5)*.12+(gr>.985?.25:0);const i=(y*512+x)*4;
+  id.data[i]=Math.min(255,b.r*255*s);id.data[i+1]=Math.min(255,b.g*255*s);id.data[i+2]=Math.min(255,b.b*255*s);id.data[i+3]=255}
+  g.putImageData(id,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(40,40);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return t}
+const geo=new THREE.PlaneGeometry(2*S.half+800,2*S.half+800,260,260);geo.rotateX(-Math.PI/2);const pos=geo.attributes.position;
+for(let i=0;i<pos.count;i++)pos.setY(i,height(pos.getX(i),pos.getZ(i)));geo.computeVertexNormals();
+const ground=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({map:groundTex(S.ground),roughness:.97,metalness:0}));ground.receiveShadow=true;scene.add(ground);
+// --- deposit fields with ore boulders ---
+for(const p of S.patches){const water=p.res=='water';const col=C(p.color);
+  const disc=new THREE.Mesh(new THREE.CircleGeometry(p.r,64),water?new THREE.MeshStandardMaterial({color:0x123e66,roughness:.08,metalness:.2}):new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.22,depthWrite:false}));
+  disc.rotation.x=-Math.PI/2;disc.position.set(p.x,height(p.x,p.z)+(water?0.25:0.4),p.z);scene.add(disc);
+  const ring=new THREE.Mesh(new THREE.RingGeometry(p.r-.4,p.r,96),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.8,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.copy(disc.position);ring.position.y+=.05;scene.add(ring);
+  if(!water)for(let i=0;i<14;i++){const a=rnd()*6.28,d=Math.sqrt(rnd())*p.r*.9,x=p.x+Math.cos(a)*d,z=p.z+Math.sin(a)*d,s=.5+rnd()*1.2;const m=new THREE.Mesh(new THREE.SphereGeometry(1,12,8),new THREE.MeshStandardMaterial({color:col,roughness:.6}));m.scale.set(s*1.4,s*.8,s);m.position.set(x,height(x,z)+s*.2,z);m.castShadow=true;scene.add(m)}}
+// rocks
+const rockM=new THREE.MeshStandardMaterial({color:C(S.ground).multiplyScalar(.75),roughness:1});
+for(let i=0;i<(isMoon?320:140);i++){const x=(rnd()*2-1)*(S.half+60),z=(rnd()*2-1)*(S.half+60);if(x*x+z*z<1600)continue;const s=.3+Math.pow(rnd(),3)*2.2;const m=new THREE.Mesh(new THREE.DodecahedronGeometry(1,1),rockM);m.scale.set(s*1.3,s*.7,s);m.position.set(x,height(x,z)+s*.15,z);m.castShadow=true;scene.add(m)}
+// --- structures (mirrors StructureFactory) ---
+const M=(c,r=.5,m=.2,e)=>new THREE.MeshStandardMaterial({color:C(c),roughness:r,metalness:m,emissive:e?C(e):0x000000,emissiveIntensity:e?1.5:0});
+const mats={metal:M('#b8bcc6',.35,.6),dark:M('#383c46',.5,.4),conc:M('#8c8c88',.9,0),panel:M('#14285a',.15,.7),white:M('#eceef2',.45,.1),glow:M('#ff8c26',.6,0,'#ff8c26'),glass:M('#59ccff',.1,.3,'#2a90c0')};
+const box=(g,x,y,z,sx,sy,sz,m,ry=0,rz=0,rx=0)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),m);o.position.set(x,y,z);o.rotation.set(rx,ry,rz);o.castShadow=o.receiveShadow=true;g.add(o);return o};
+const cyl=(g,x,y,z,d,h,m,rx=0,rz=0,seg=24)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(d/2,d/2,h,seg),m);o.position.set(x,y,z);o.rotation.set(rx,0,rz);o.castShadow=o.receiveShadow=true;g.add(o);return o};
+const sph=(g,x,y,z,sx,sy,sz,m)=>{const o=new THREE.Mesh(new THREE.SphereGeometry(.5,32,20),m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.castShadow=o.receiveShadow=true;g.add(o);return o};
+function structure(b){const g=new THREE.Group();const f=b.fp,acc=M(b.color,.45,.25);cyl(g,0,-1.2,0,f,3,mats.conc);
+  switch(b.id){
+  case 'wind_turbine':cyl(g,0,12,0,1.1,24,mats.white);box(g,0,24.2,-.6,1.4,1.4,3.4,mats.white);{const hub=new THREE.Group();hub.position.set(0,24.2,1.3);g.add(hub);sph(hub,0,0,0,1.2,1.2,1.2,mats.white);const a=(b.x*7)%6.28;for(let i=0;i<3;i++){const bl=box(hub,0,0,0,.5,10.5,.15,mats.white);bl.geometry.translate(0,5.4,0);bl.rotation.z=a+i*2.094}}break;
+  case 'solar_array':for(let r=-1;r<=1;r++)for(let c=-1;c<=1;c++){cyl(g,c*3.4,.6,r*3.4,.15,1.2,mats.dark);box(g,c*3.4,1.3,r*3.4,3.1,.08,2.4,mats.panel,0,0,-.49)}break;
+  case 'surface_mine':for(let i=0;i<4;i++)box(g,(i%2-.5)*3,5,((i>>1)-.5)*3,.35,10,.35,mats.dark);box(g,0,10.2,0,3.8,.8,3.8,acc);cyl(g,0,11.2,0,2.4,.3,mats.metal,Math.PI/2);box(g,3.5,2.5,0,6,.5,1.2,mats.metal,0,.52);sph(g,6.2,.2,0,4,2.2,4,M(b.ore,.85,0));break;
+  case 'smelter':box(g,0,2.8,0,8,5.6,6.5,acc);cyl(g,2.5,7,-1.5,1.3,14,mats.dark);cyl(g,2.5,14.05,-1.5,1.35,.2,mats.glow);box(g,-2.5,1.5,3.3,2.6,3,1,mats.glow);break;
+  case 'refinery':for(let i=0;i<3;i++)cyl(g,-4+i*4,3,-3,3,6,mats.white);cyl(g,4,7,3,1.6,14,acc);box(g,-1,1.5,3,7,3,4,mats.metal);break;
+  case 'chemical_plant':sph(g,-3.5,4.5,-2,5,5,5,mats.white);sph(g,3.5,4.5,-2,5,5,5,mats.white);box(g,0,2,4,12,4,4.5,acc);break;
+  case 'component_factory':box(g,0,3,0,12,6,9,acc);for(let i=0;i<4;i++)box(g,-4.5+i*3,6.8,0,.2,2.2,9,mats.panel,0,.61);box(g,0,2,4.55,4,4,.2,mats.dark);break;
+  case 'rocket_assembly':cyl(g,0,.15,0,f*.85,.3,mats.conc);box(g,6,16,0,2.2,32,2.2,acc);for(let i=1;i<6;i++)box(g,3.8,i*5.5,0,3.2,.3,.6,mats.metal);box(g,-8,5,-6,9,10,8,mats.metal);cyl(g,0,13,0,2.6,26,mats.white);sph(g,0,26.5,0,2.6,4.5,2.6,mats.white);cyl(g,0,9,0,2.65,1.2,mats.dark);break;
+  case 'research_lab':sph(g,0,0,0,10,8,10,mats.white);cyl(g,3,4.5,2,.2,4,mats.dark);sph(g,3,6.6,2,3,.6,3,mats.metal);box(g,0,1.2,5,2.4,2.4,1,mats.glass);break;
+  case 'warehouse':box(g,0,3.5,0,12,7,10,acc);for(let i=0;i<5;i++)box(g,-4.8+i*2.4,3.5,5.05,.25,7,.1,mats.dark);break;
+  case 'water_pump':box(g,0,1.5,0,4,3,4,acc);cyl(g,0,2,3,.5,4,mats.metal,Math.PI/2);break;
+  case 'oil_derrick':box(g,0,1,0,1,2,1,mats.dark);box(g,0,3.2,0,7,.6,.6,acc,0,.2);box(g,3.2,1.6,0,.3,3.2,.3,mats.metal);break;
+  case 'he3_harvester':box(g,0,2.2,0,9,3.4,6,acc);for(let i=0;i<6;i++)cyl(g,-3.2+(i%3)*3.2,.9,i<3?-3.3:3.3,1.8,.8,mats.dark,Math.PI/2);box(g,6.5,2.2,0,5,.6,1.6,mats.metal,0,-.44);sph(g,-2,4.5,0,3,2,3,mats.glass);break;
+  case 'ice_extractor':cyl(g,0,5,0,2.4,10,acc);sph(g,0,1.4,3.6,3.5,2.6,3.5,mats.white);break;
+  default:box(g,0,2.5,0,f*.7,5,f*.6,acc)}
+  const st={Working:'#4dff8c',Paused:'#808890',Idle:'#808890',NoPower:'#ff4d4d',NoDeposit:'#ff4d4d',NoFuel:'#ff4d4d'}[b.status]||'#ffb233';
+  const hgt=b.id=='wind_turbine'?27:b.id=='rocket_assembly'?34:b.id=='surface_mine'?12.5:9;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex(),color:C(st),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));sp.scale.set(3,3,3);sp.position.set(0,hgt,0);g.add(sp);
+  g.position.set(b.x,height(b.x,b.z),b.z);g.rotation.y=-b.rot*Math.PI/180;return g}
+let _glow;function glowTex(){if(_glow)return _glow;const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');const gr=g.createRadialGradient(64,64,0,64,64,64);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.3,'rgba(255,255,255,.6)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,128,128);return _glow=new THREE.CanvasTexture(c)}
+for(const b of S.buildings)scene.add(structure(b));
+// landing pad + lander
+cyl(scene,0,-.6,0,30,1.6,M('#53555a',.8,.1));box(scene,0,-.12,0,16,.05,1.2,M('#ff9a26',.6,0));box(scene,0,-.12,0,1.2,.05,16,M('#ff9a26',.6,0));
+cyl(scene,-7,2.6,6,3.2,3.2,mats.white);sph(scene,-7,4.4,6,3,2.4,3,mats.white);
+// engineer
+const eng=new THREE.Group();const suit=M('#eeeef2',.55,.05),oran=M('#ff801f',.5,0),visor=M('#d9a033',.08,.9);
+sph(eng,0,1.1,0,.62,.9,.42,suit);box(eng,0,1.2,-.3,.5,.62,.26,suit);box(eng,0,1.22,.22,.28,.2,.05,oran);sph(eng,0,1.72,0,.46,.46,.46,suit);sph(eng,0,1.73,.1,.36,.27,.3,visor);
+for(const [x,l,r] of [[-.15,.78,.25],[.15,.78,-.25]]){const leg=new THREE.Group();leg.position.set(x,l,0);leg.rotation.x=r;eng.add(leg);sph(leg,0,-.36,0,.17,.75,.17,suit)}
+for(const [x,r] of [[-.38,-.3],[.38,.3]]){const arm=new THREE.Group();arm.position.set(x,1.42,0);arm.rotation.x=r;eng.add(arm);sph(arm,0,-.28,0,.17,.6,.17,suit);sph(arm,0,-.56,.03,.19,.14,.24,oran)}
+// rover
+const rov=new THREE.Group();box(rov,0,1.1,0,2.6,.7,4.6,mats.white);box(rov,0,1.75,.9,2.2,.8,1.8,mats.white);box(rov,0,1.8,1.81,2,.55,.05,mats.glass);box(rov,0,1.5,-1.4,2.4,.12,1.6,oran);
+for(let i=0;i<6;i++)cyl(rov,i%2?1.45:-1.45,.55,-1.6+(i>>1)*1.6,1.1,.44,mats.dark,0,Math.PI/2);
+// sky objects
+const sunSp=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex(),color:0xfff3d8,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:false}));sunSp.scale.set(260,260,1);sunSp.position.copy(sunDir).multiplyScalar(3800);scene.add(sunSp);
+if(airless){const mw=await tl.loadAsync(T+'milky_way.jpg');mw.colorSpace=THREE.SRGBColorSpace;const sk=new THREE.Mesh(new THREE.SphereGeometry(4500,64,32),new THREE.MeshBasicMaterial({map:mw,side:THREE.BackSide,color:0x8c94a8,fog:false}));scene.add(sk)}
+let earthSky;if(isMoon){const et=await tl.loadAsync(T+'earth_day.jpg');et.colorSpace=THREE.SRGBColorSpace;earthSky=new THREE.Mesh(new THREE.SphereGeometry(1,64,48),new THREE.MeshStandardMaterial({map:et,roughness:.9,emissive:0x000000}));earthSky.scale.setScalar(3500*Math.tan(1.9*Math.PI/180)*1.0);scene.add(earthSky)}
+// --- shots ---
+const cam=new THREE.PerspectiveCamera(55,W/H,.1,9000);
+let focus, camPos, prompt='', floats=[], ghost=null, palette=false;
+const near=S.buildings.map(b=>({b,d:Math.hypot(b.x,b.z)})).sort((a,c)=>a.d-c.d);
+let tgt=null;
+if(shot=='earth'){tgt=near.find(n=>n.b.id=='smelter').b;const dir=new THREE.Vector2(tgt.x,tgt.z).normalize();const ex=tgt.x-dir.x*13,ez=tgt.z-dir.y*13;
+  eng.position.set(ex,height(ex,ez),ez);eng.rotation.y=Math.atan2(tgt.x-ex,tgt.z-ez);scene.add(eng);
+  rov.position.set(ex-dir.y*9,height(ex-dir.y*9,ez+dir.x*9),ez+dir.x*9);rov.rotation.y=eng.rotation.y+.9;scene.add(rov);
+  focus=new THREE.Vector3(ex+dir.x*6,height(ex,ez)+2,ez+dir.y*6);camPos=new THREE.Vector3(ex-dir.x*16+dir.y*7,height(ex,ez)+10,ez-dir.y*16-dir.x*7);prompt='[E] '+tgt.name+' (Lv '+tgt.lv+') - manage';}
+if(shot=='earth_build'){let best=null;for(let r=70;r<=200;r+=10)for(let a=0;a<6.28;a+=.2){const x=Math.cos(a)*r,z=Math.sin(a)*r;let m=1e9;for(const b of S.buildings)m=Math.min(m,Math.hypot(b.x-x,b.z-z)-b.fp/2);if(!best||m>best.m)best={x,z,m}}
+  const ex=best.x,ez=best.z;const toC=new THREE.Vector2(-ex,-ez).normalize();eng.position.set(ex,height(ex,ez),ez);eng.rotation.y=Math.atan2(toC.x,toC.y);scene.add(eng);
+  rov.position.set(ex-toC.y*8,height(ex-toC.y*8,ez+toC.x*8),ez+toC.x*8);rov.rotation.y=eng.rotation.y+1.2;scene.add(rov);
+  const gx=ex+toC.x*16,gz=ez+toC.y*16;focus=new THREE.Vector3(gx,height(gx,gz)+3,gz);camPos=new THREE.Vector3(ex-toC.x*14+toC.y*6,height(ex,ez)+11,ez-toC.y*14-toC.x*6);
+  ghost=structure({id:'research_lab',fp:12,color:'#00E5FF',status:'Working',x:gx,z:gz,rot:0,lv:1,ore:'#888'});ghost.traverse(o=>{if(o.isMesh)o.material=new THREE.MeshBasicMaterial({color:0x4dff99,transparent:true,opacity:.38,depthWrite:false});if(o.isSprite)o.visible=false});scene.add(ghost);palette=true}
+if(shot=='moon'){const cnt=p=>S.buildings.filter(b=>Math.hypot(b.x-p.x,b.z-p.z)<p.r+8).length;const p=S.patches.filter(q=>q.res=='regolith').sort((a,b)=>cnt(a)-cnt(b))[0]||S.patches[0];
+  const ex=p.x,ez=p.z;eng.position.set(ex,height(ex,ez),ez);scene.add(eng);eng.children.forEach(c=>{if(c.isGroup&&c.position.y>1.3)c.rotation.x=-1.2});
+  const toBase=new THREE.Vector2(-ex,-ez).normalize();eng.rotation.y=Math.atan2(toBase.x,toBase.y)+2.6;
+  rov.position.set(ex+toBase.y*9,height(ex+toBase.y*9,ez-toBase.x*9),ez-toBase.x*9);rov.rotation.y=-.9;scene.add(rov);
+  focus=new THREE.Vector3(ex+toBase.x*25,height(ex,ez)+4,ez+toBase.y*25);camPos=new THREE.Vector3(ex-toBase.x*10-toBase.y*5,height(ex,ez)+4,ez-toBase.y*10+toBase.x*5);
+  floats.push(['+2 '+p.name,'#e0e0e0',new THREE.Vector3(ex,height(ex,ez)+3.2,ez)]);prompt='[Hold F] Drill '+p.name+' by hand';
+  if(earthSky){const d=focus.clone().sub(camPos);d.y=0;d.normalize();d.applyAxisAngle(new THREE.Vector3(0,1,0),-.25);d.y=.24;d.normalize();earthSky.position.copy(camPos).add(d.multiplyScalar(3500));earthSky.rotation.z=-.41}}
+if(isMoon){const d=camPos.clone().sub(focus);d.y=0;d.normalize();d.applyAxisAngle(new THREE.Vector3(0,1,0),.9);d.y=.5;sunDir.copy(d.normalize());sunSp.position.copy(camPos).add(sunDir.clone().multiplyScalar(3800));}
+cam.position.copy(camPos);cam.lookAt(focus);sun.target.position.copy(focus);scene.add(sun.target);sun.position.copy(focus).add(sunDir.clone().multiplyScalar(300));
+renderer.render(scene,cam);
+// --- HUD (mirrors SurfaceHud) ---
+const col=n=>getComputedStyle(document.documentElement).getPropertyValue('--'+n).trim();
+const fmt=v=>{let a=Math.abs(v),s=['','K','M'],i=0;while(a>=1000&&i<2){a/=1000;v/=1000;i++}return (a<10&&a%1?v.toFixed(1):a<100&&i?v.toFixed(2):Math.round(v))+s[i]};
+const res=S.inv.map(r=>`<div style="display:flex;height:22px;align-items:center;font-size:12px"><span style="width:11px;height:11px;border-radius:6px;background:${r.color};margin:0 8px 0 2px"></span><span style="flex:1">${r.name}</span><span style="color:${r.amt>=r.cap?col('warn'):col('tx')}">${fmt(r.amt)}</span>${r.rate?`<span style="width:70px;text-align:right;color:${r.rate>0?col('good'):col('bad')}">${r.rate>0?'+':''}${Math.abs(r.rate)<.1?(r.rate*60).toFixed(1)+'/min':r.rate.toFixed(2)+'/s'}</span>`:'<span style="width:70px"></span>'}</div>`).join('');
+const mm=()=>{const h=S.half,sz=200;const mp=(x,z)=>[(x+h)/(2*h)*sz,(h-z)/(2*h)*sz];let o='';for(const p of S.patches){const [x,y]=mp(p.x,p.z),r=p.r/(2*h)*sz;o+=`<div style="position:absolute;left:${x-r}px;top:${y-r}px;width:${2*r}px;height:${2*r}px;border-radius:50%;background:${p.color}73"></div>`}
+  for(const b of S.buildings){const [x,y]=mp(b.x,b.z);o+=`<div style="position:absolute;left:${x-2.5}px;top:${y-2.5}px;width:5px;height:5px;background:${b.status=='Working'?col('good'):col('warn')}"></div>`}
+  const [ex,ey]=mp(eng.position.x,eng.position.z);o+=`<div style="position:absolute;left:${ex-4.5}px;top:${ey-4.5}px;width:9px;height:9px;border-radius:5px;background:var(--cy)"></div>`;return o};
+const proj=v=>{const p=v.clone().project(cam);return [(p.x+1)/2*W,(1-p.y)/2*H]};
+let fl='';for(const [t,c,v] of floats){const [x,y]=proj(v);fl+=`<div class="float" style="left:${x}px;top:${y}px;color:${c}">${t}</div>`}
+const center=(txt,y)=>`<div class="glass" style="left:50%;transform:translateX(-50%);top:${y}px;padding:9px 18px;white-space:nowrap">${txt}</div>`;
+let mid='';
+if(palette){mid+=center('<span style="color:var(--good)">Left click: build Research Laboratory</span> &nbsp; R: rotate &nbsp; Esc: cancel',H-168)+`<div style="position:absolute;left:50%;transform:translateX(-50%);top:${H-196}px;font-size:12px">Cost: 15 Iron Plate &nbsp;10 Copper Wire</div>`;
+  const defs=[['Surface Mine','12 Iron Plate','-2 MW'],['Smelter','15 Iron Plate','-3 MW'],['Research Laboratory','15 Iron Plate 10 Copper Wire','-2 MW'],['Wind Turbine','10 Iron Plate 5 Copper Wire','+6 MW'],['Component Factory','20 Iron Plate 10 Copper Wire','-3 MW'],['Warehouse','20 Iron Plate',''],['Water Pump','10 Iron Plate 5 Copper Wire','-1 MW']];
+  mid+=`<div class="glass" style="left:${W/2-560}px;top:${H-330}px;width:1120px;height:150px;padding:8px 18px"><b>BUILD</b> <span class="dim">choose a structure, then place it in the world (B / Esc to close)</span><div style="display:flex;gap:8px;margin-top:8px">${defs.map((d,i)=>`<div style="width:152px;height:92px;border-radius:8px;padding:8px 10px;background:${i==2?'linear-gradient(180deg,#1c567a,#12384f)':'linear-gradient(180deg,#24365a,#16223a)'};border:1px solid ${i==2?'rgba(115,230,255,.85)':'rgba(115,205,255,.35)'}"><b style="font:12.5px BodyB">${d[0]}</b><div style="font-size:10.5px;margin:3px 0">${d[1]}</div><div style="font-size:11px;color:${d[2][0]=='+'?col('good'):col('warn')}">${d[2]}</div></div>`).join('')}</div></div>`}
+else if(prompt)mid+=center(prompt,H-168);
+if(shot=='moon')mid+=`<div style="position:absolute;left:50%;transform:translateX(-50%);top:${H-196}px;font-size:12px"><span class="dim">Standing on a</span> Regolith <span class="dim">field · richness 150%</span></div>`;
+if(shot=='earth')mid+=`<div class="glass" style="left:${W-430}px;top:${H-420}px;width:420px;height:230px;padding:14px 18px"><div style="display:flex"><b style="font:18px BodyB;flex:1">${tgt.name} <span class="dim">Lv ${tgt.lv}</span></b><span class="btn" style="padding:3px 12px">Close</span></div><div class="dim">Turns ore into metals.</div><div style="display:flex;gap:10px;margin:8px 0"><span style="padding:1px 10px;border-radius:9px;font:11px BodyB;color:var(--good);background:#46e2962e">Working</span><div class="bar" style="width:160px"><i style="width:110px"></i><em>${tgt.status}</em></div></div><div><span class="btn" style="padding:2px 9px">&lt;</span> &nbsp;${tgt.recipe}&nbsp; <span class="btn" style="padding:2px 9px">&gt;</span></div><div style="position:absolute;bottom:16px;display:flex;gap:6px"><span class="btn acc">Upgrade</span><span class="btn">Pause</span><span class="btn">Norm</span><span class="btn">Demolish</span></div></div>`;
+document.getElementById('ui').innerHTML=`<div class="top"><div class="logo" style="width:270px"><b>STELLAR <i>INDUSTRIES</i></b><span>Preview Empire · ${SN.play}</span></div>
+<div class="sel"><b style="font:15px BodyB">${S.name}</b><br><small style="color:var(--dim);font-size:11px">Sol · ${SN.locations.length} worlds</small></div>
+<div class="stat" style="width:150px"><small>ENERGY</small><span style="color:var(--good)">${fmt(SN.supply)} / ${fmt(SN.demand)} MW</span></div><div class="stat" style="width:150px"><small>SCIENCE</small><span style="color:var(--cy)">${fmt(SN.science)}</span></div>
+<div class="stat" style="width:220px"><small>RESEARCH</small>${SN.research?`<div class="bar" style="width:210px"><i style="width:${SN.rfrac*210}px"></i><em>${SN.research}</em></div>`:'<span style="color:var(--warn)">idle</span>'}</div>
+<div style="margin-left:auto;display:flex;gap:8px"><span class="btn">Orbit view</span><span class="btn">Command</span><span class="btn">Save</span></div></div>
+<div class="glass" style="left:10px;top:74px;width:240px;padding:8px 12px">${res}</div>
+<div class="glass" style="left:10px;top:${H-286}px;width:220px;height:220px;padding:10px"><div style="position:relative;width:200px;height:200px;background:rgba(0,0,0,.35);border-radius:6px;overflow:hidden">${mm()}</div></div>
+<div style="position:absolute;left:16px;top:${H-58}px"><b>${S.name}</b> <span class="dim">${S.gravity.toFixed(2)} g · ${S.temp} °C · ${S.atm}</span></div>
+<div class="glass" style="left:${W/2-430}px;top:${H-46}px;width:860px;height:34px;text-align:center;line-height:32px;font-size:12px">WASD move · Shift sprint · Space jump · B build · E interact · F drill · Right-drag camera · Tab command center · M orbit view</div>
+${SN.objective?`<div class="glass" style="right:10px;bottom:10px;width:330px;padding:8px 14px 10px 20px"><div class="dim">CURRENT OBJECTIVE</div><div style="margin:2px 0 7px"><span style="color:var(--or)">${SN.objective.split(' - ')[0]}</span> <span style="font-size:12px">${SN.objective.split(' - ')[1]}</span></div><div class="bar" style="--c:#ff963c"><i style="width:${Math.min(1,SN.objp)*296}px"></i></div></div>`:''}
+${mid}${fl}`;
+document.body.dataset.done='1';
+</script></body></html>

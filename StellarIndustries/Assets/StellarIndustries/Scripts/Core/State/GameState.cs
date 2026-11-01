@@ -20,6 +20,12 @@ namespace StellarIndustries.Core.State
         /// <summary>0 = low, 1 = normal, 2 = high. High priority buildings get inputs first.</summary>
         public int Priority = 1;
         public double Progress;
+        /// <summary>Position on the location's surface plot (metres, landing site = 0,0) and yaw in degrees.</summary>
+        public double PosX, PosZ, RotationDeg;
+        /// <summary>False for buildings created without a position (start kit, old saves): they get auto-placed.</summary>
+        public bool Placed;
+        /// <summary>Grandfathered extraction buildings that could not be auto-placed on a matching deposit field.</summary>
+        public bool DepositExempt;
         [NonSerialized] public BuildingStatus Status = BuildingStatus.Idle;
         /// <summary>Current effective speed multiplier (for UI).</summary>
         [NonSerialized] public double EffectiveSpeed;

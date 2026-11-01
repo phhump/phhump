@@ -50,6 +50,9 @@ namespace StellarIndustries.Tests
             ("Regression: coal plants only burn what the grid needs", FuelThrottle),
             ("Regression: reusable rocket returns despite full storage", RocketReturnOverflow),
             ("Regression: star-system achievement counts systems", StarSystemAchievement),
+            ("Placement: deposit fields, overlap, bounds", PlacementRules),
+            ("Placement: player-built mine extracts only its field", PlacedMineRecipes),
+            ("Placement: auto-placed buildings never overlap; positions saved", AutoPlacementAndSave),
             ("Bot playthrough reaches the Moon and harvests He-3", BotPlaythrough),
         };
 
@@ -570,6 +573,84 @@ namespace StellarIndustries.Tests
             Near(sim.Achievements.Progress(a), 1, 1e-9, "Moon is still Sol");
             sim.Missions.UnlockLocation("proxima_b"); sim.Missions.UnlockLocation("proxima_d"); sim.Missions.UnlockLocation("barnard_e");
             Near(sim.Achievements.Progress(a), 3, 1e-9, "Sol + Alpha Centauri + Barnard");
+        }
+
+        static void PlacementRules()
+        {
+            var sim = NewSim(41);
+            var iron = sim.Placement.Patches("earth").First(p => p.ResourceId == "iron_ore");
+            Assert(sim.Placement.Patches("earth").Count >= 7 * 2, "every deposit has fields");
+            Assert(iron.X * iron.X + iron.Z * iron.Z < 170 * 170, "first iron field is near the landing site");
+            Assert(sim.Placement.Patches("earth").Select(p => p.X + "," + p.Z).SequenceEqual(NewSim(99).Placement.Patches("earth").Select(p => p.X + "," + p.Z)), "fields are deterministic");
+            Give(sim, "iron_plate", 2000); Give(sim, "copper_wire", 500);
+            Assert(sim.Construction.BuildAtProblem("smelter", "earth", 0, 0).Contains("landing pad"), "landing pad stays clear");
+            Assert(sim.Construction.BuildAtProblem("smelter", "earth", 5000, 0).Contains("Outside"), "bounds enforced");
+            var free = FreeSpot(sim, "smelter");
+            var s1 = sim.Construction.BuildAt("smelter", "earth", free.x, free.z, 90);
+            Assert(s1 != null && s1.Placed && s1.RotationDeg == 90, "smelter placed with rotation");
+            Assert(sim.Construction.BuildAtProblem("smelter", "earth", free.x + 3, free.z) != null, "overlap rejected");
+            var noField = FreeSpot(sim, "smelter", avoidPatches: true);
+            Assert(sim.Construction.BuildAtProblem("surface_mine", "earth", noField.x, noField.z).Contains("deposit field"), "mines need a deposit field");
+        }
+
+        static (double x, double z) FreeSpot(GameSimulation sim, string def, bool avoidPatches = false)
+        {
+            for (double r = 40; r < 280; r += 7)
+                for (double a = 0; a < 6.28; a += 0.21)
+                {
+                    double x = Math.Cos(a) * r, z = Math.Sin(a) * r;
+                    if (avoidPatches && sim.Placement.PatchesAt("earth", x, z).Any()) continue;
+                    if (sim.Placement.SpotProblem(sim.Db.Building(def), "earth", x, z) == null) return (x, z);
+                }
+            throw new Exception("no free spot");
+        }
+
+        static void PlacedMineRecipes()
+        {
+            var sim = NewSim(42);
+            Give(sim, "iron_plate", 500);
+            for (int i = 0; i < 4; i++) sim.Construction.Place(sim.Db.Building("wind_turbine"), "earth");
+            var cu = sim.Placement.Patches("earth").First(p => p.ResourceId == "copper_ore");
+            DepositPatch spot = cu; double sx = 0, sz = 0; bool found = false;
+            for (double r = 0; r < cu.Radius && !found; r += 3)
+                for (double a = 0; a < 6.28 && !found; a += 0.3)
+                {
+                    sx = cu.X + Math.Cos(a) * r; sz = cu.Z + Math.Sin(a) * r;
+                    found = cu.Contains(sx, sz) && sim.Construction.BuildAtProblem("surface_mine", "earth", sx, sz) == null;
+                }
+            Assert(found, "free spot on the copper field");
+            var mine = sim.Construction.BuildAt("surface_mine", "earth", sx, sz, 0);
+            Assert(mine.RecipeId == "mine_copper", "mine on copper field mines copper: " + mine.RecipeId);
+            Assert(!sim.Construction.SetRecipe(mine.Uid, "mine_coal"), "cannot mine coal on a copper field");
+            Assert(sim.Construction.ValidRecipes(mine).All(r => r.RequiredDeposit == "copper_ore"), "only copper recipes offered");
+            double before = Get(sim, "copper_ore");
+            Run(sim, 30);
+            Assert(Get(sim, "copper_ore") > before, "placed mine produces");
+        }
+
+        static void AutoPlacementAndSave()
+        {
+            var sim = NewSim(43);
+            var bot = new ProgressionBot(sim);
+            for (int t = 0; t < 3600; t++) { if (t % 5 == 0) bot.Decide(); sim.Tick(1); }
+            var placed = sim.State.Buildings.Where(b => b.LocationId == "earth").ToList();
+            Assert(placed.All(b => b.Placed), "all buildings have positions");
+            for (int i = 0; i < placed.Count; i++)
+                for (int j = i + 1; j < placed.Count; j++)
+                {
+                    var a = placed[i]; var b = placed[j];
+                    double min = PlacementSystem.Radius(sim.Db.Building(a.DefId)) + PlacementSystem.Radius(sim.Db.Building(b.DefId)) - 1e-6;
+                    Assert((a.PosX - b.PosX) * (a.PosX - b.PosX) + (a.PosZ - b.PosZ) * (a.PosZ - b.PosZ) >= min * min, "no overlap between " + a.DefId + " and " + b.DefId);
+                }
+            int exempt = placed.Count(b => b.DepositExempt);
+            Assert(exempt == 0, "auto-placed extractors stand on their fields (exempt: " + exempt + ")");
+            var lr = SaveSerializer.Deserialize(SaveSerializer.Serialize(sim.State), sim.Db);
+            var first = placed[0]; var loaded = lr.State.Buildings.First(b => b.Uid == first.Uid);
+            Assert(loaded.Placed && Math.Abs(loaded.PosX - first.PosX) < 1e-9 && Math.Abs(loaded.RotationDeg - first.RotationDeg) < 1e-9, "position survives save/load");
+            // Old saves without positions get placed on load.
+            foreach (var b in lr.State.Buildings) b.Placed = false;
+            var sim2 = new GameSimulation(sim.Db, lr.State);
+            Assert(sim2.State.Buildings.All(b => b.Placed), "legacy buildings are auto-placed on load");
         }
 
         // ---------------------------------------------------------------- bot playthrough
