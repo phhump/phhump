@@ -24,12 +24,19 @@ public static class Program
     {
         var sim = GameSimulation.NewGame(DefaultContent.Create(), "Trace", 2024);
         var bot = new ProgressionBot(sim);
-        for (int t = 0; t < 4 * 3600; t++)
+        Console.WriteLine("  min | techs | science stock | sci/s | active research          | blocked% | buildings | milestones");
+        double lastSci = 0; int lastT = 0;
+        for (int t = 0; t <= 6 * 3600; t++)
         {
             if (t % 5 == 0) bot.Decide();
             sim.Tick(1);
-            if (t % 900 == 0 && t > 3600) Console.WriteLine($"=== {t / 60} min ===\n{bot.Diagnostics()}\n");
-            if (sim.State.IsUnlocked("moon")) { Console.WriteLine("Moon at " + t / 60 + " min"); break; }
+            if (t % 900 == 0 && t > 0)
+            {
+                double produced = sim.State.Stats.Produced.TryGetValue("science", out var p) ? p : 0;
+                double rate = (produced - lastSci) / (t - lastT); lastSci = produced; lastT = t;
+                int blocked = sim.State.Buildings.Count(b => b.Status == StellarIndustries.Core.State.BuildingStatus.MissingInput || b.Status == StellarIndustries.Core.State.BuildingStatus.OutputFull);
+                Console.WriteLine($"{t / 60,5} | {sim.State.Research.Completed.Count,5} | {sim.Inventory.Get("earth", "science"),13:0} | {rate,5:0.0} | {(sim.Db.Tech(sim.State.Research.ActiveTech)?.Name ?? "-"),-24} | {100.0 * blocked / Math.Max(1, sim.State.Buildings.Count),7:0}% | {sim.State.Buildings.Count,9} | {string.Join(",", sim.State.Achievements)}");
+            }
         }
         return 0;
     }

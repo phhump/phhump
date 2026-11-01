@@ -238,6 +238,19 @@ namespace StellarIndustries.Core.Data
         public double IrradianceWm2;
         /// <summary>Fraction of sunlight reaching the surface (atmosphere, dust). Simplified average.</summary>
         public double SurfaceTransmission = 1;
+        // Presentation (data-driven so new worlds need no code). Texture names refer to Resources/Textures.
+        public string SurfaceTexture = "";
+        public string NightTexture = "";
+        public string CloudTexture = "";
+        /// <summary>Tint applied to the surface texture (used for artist's impressions of exoplanets).</summary>
+        public string TextureTintHex = "#FFFFFF";
+        public string AtmosphereColorHex = "";
+        /// <summary>0 = no visible atmosphere, 1 = Earth-like glow.</summary>
+        public double AtmosphereThickness;
+        public double AxialTiltDeg;
+        /// <summary>Sidereal rotation period in hours (visual spin speed).</summary>
+        public double RotationPeriodHours = 24;
+        public bool ArtistImpression;
     }
 
     public enum MissionType { Launch, Landing, Cargo, Survey }
@@ -280,7 +293,7 @@ namespace StellarIndustries.Core.Data
         public string ScienceNote = "";
     }
 
-    public enum AchievementCondition { ResourceProduced, MissionCompleted, LocationUnlocked, TechCount, BuildingCount, RocketsLaunched, TechCompleted }
+    public enum AchievementCondition { ResourceProduced, MissionCompleted, LocationUnlocked, TechCount, BuildingCount, RocketsLaunched, TechCompleted, StarSystemsReached }
 
     [Serializable]
     public class AchievementDef

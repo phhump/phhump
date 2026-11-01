@@ -7,7 +7,7 @@ namespace StellarIndustries.Core.Systems
 {
     /// <summary>
     /// Simplified but real physics used by the game:
-    ///  - Tsiolkovsky rocket equation with staging: Δv = Isp · g0 · ln(m0 / mf) per stage.
+    ///  - Tsiolkovsky rocket equation with staging: delta-v = Isp · g0 · ln(m0 / mf) per stage.
     ///  - Launch windows: Δv requirement varies over a (compressed) synodic period.
     ///  - Solar power from irradiance (inverse-square law) and atmospheric transmission.
     ///  - Reliability growth with flight heritage.

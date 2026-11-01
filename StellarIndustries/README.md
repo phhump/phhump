@@ -4,20 +4,25 @@ An idle / incremental space-industry simulator for Unity. You start with one min
 one wind turbine on Earth, research rocketry, build your first rocket, reach orbit, land on the Moon,
 build a lunar industry from local resources and — with enough research — head for Mars.
 
-> **Status:** playable test build. The simulation core is compiled and covered by 28 automated
+> **Status:** playable test build. The simulation core is compiled and covered by 31 automated
 > tests (including a bot that plays from scratch to helium-3 mining on the Moon). The Unity layer
 > compiles against UnityEngine 2021.3 LTS reference assemblies, but it has **not yet been run
 > inside the Unity Editor** in this environment — please report anything that looks off.
 
 ## Preview
 
-Preview renders from real simulation data (bot playthrough) — **not Unity screenshots** (see `Tools/PreviewRender`):
+Preview renders from **real simulation data** with the game's **real textures and fonts** — drawn outside Unity, so
+**not Unity screenshots** (lighting/shading approximated, see `Tools/PreviewRender`).
 
-| Earth industries (2 h 20 min) | Moon base (4 h) |
+| Main menu | Earth industries (2 h 20 min) |
 |---|---|
-| ![Earth](Docs/preview/industries.png) | ![Moon](Docs/preview/moon.png) |
+| ![Menu](Docs/preview/menu.png) | ![Earth](Docs/preview/industries.png) |
+| **Moon base (4 h)** | **Solar system map** |
+| ![Moon](Docs/preview/moon.png) | ![Map](Docs/preview/map.png) |
 | **Technology tree** | **Nearby stars (late-game scenario)** |
 | ![Research](Docs/preview/research.png) | ![Stars](Docs/preview/galaxy.png) |
+| **Colony on Proxima b (artist's impression)** | |
+| ![Proxima b](Docs/preview/proxima.png) | |
 
 ## Quick start
 
@@ -54,7 +59,9 @@ Settings → *Developer tools* offers game speed 1–100×, "simulate offline ti
 - **Idle/offline**: offline progression with cap (8 h base) and efficiency (50 % base), both upgradeable; clock-rollback protection; summary screen.
 - **Save system**: 3 slots, autosave, versioned format with checksum, atomic writes, rolling backup, automatic repair of unknown/invalid data, migration hook.
 - **Interstellar (Era 6, first step)**: real nearby star systems with confirmed exoplanets, laser-sail probe surveys, Daedalus-style fusion seed ships from the lunar shipyard, self-sufficient colonies, 3D star map at real sky positions.
-- **3D presentation**: procedural planets, installations visible on the surface (status blinking), launch animations with trails (pooled), solar-system map with orbits and missions in flight.
+- **HD visuals**: real planet surfaces (8K Earth with city lights and a separate cloud layer, 4K Moon and Mars), atmospheric glow, real axial tilts (NASA), Milky Way sky, textured Sun with glow, glowing stars; exoplanets as clearly labelled artist's impressions.
+- **Modern UI**: rounded glass panels, gradient buttons, glossy progress bars, status pills, collapsible facility groups with bulk actions, Rajdhani/Titillium Web typefaces.
+- **3D presentation**: planets, installations visible on the surface (status blinking), launch animations with trails (pooled), solar-system map with orbits and missions in flight.
 - **Scientific realism** (see `Docs/SCIENCE.md`, sources: NASA fact sheets, Wikipedia *Delta-v budget*): staged rocket equation, real Δv budgets, cargo mass limits, Mars launch windows (synodic period), inverse-square solar power, air separation for LOX, flight-heritage reliability, real planet data in the UI.
 - **UI**: main menu with slots, 10 screens, progressive unlocking of screens, tooltips, notifications, objectives.
 

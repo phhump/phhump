@@ -45,11 +45,11 @@ namespace StellarIndustries.Core.Data
             db.Add(laser);
 
             // --- technologies ----------------------------------------------------------------
-            var ls = T("laser_sails", "Laser Sails", TechCategory.InterstellarTravel, 10, 12000, "Light-sail probes pushed by ground-based lasers.", "photovoltaics", "interplanetary_navigation");
+            var ls = T("laser_sails", "Laser Sails", TechCategory.InterstellarTravel, 10, 80000, "Light-sail probes pushed by ground-based lasers.", "photovoltaics", "interplanetary_navigation");
             ls.MaterialCost = R("silicon_wafer", 100); db.Add(ls);
-            var fd = T("fusion_drive", "Fusion Drive", TechCategory.Propulsion, 11, 20000, "Deuterium/helium-3 fusion rocket (Project Daedalus heritage).", "fusion_power", "laser_sails");
+            var fd = T("fusion_drive", "Fusion Drive", TechCategory.Propulsion, 11, 120000, "Deuterium/helium-3 fusion rocket (Project Daedalus heritage).", "fusion_power", "laser_sails");
             fd.MaterialCost = R("helium3", 100); db.Add(fd);
-            var ic = T("interstellar_colonization", "Interstellar Colonization", TechCategory.InterstellarTravel, 12, 30000,
+            var ic = T("interstellar_colonization", "Interstellar Colonization", TechCategory.InterstellarTravel, 12, 200000,
                 "Robotic seed ships that build industry from local resources around other stars.", "fusion_drive", "automation_2");
             ic.Modifiers.Add(new ModifierDef(ModifierType.RocketReliability, 0.03)); db.Add(ic);
 
@@ -82,31 +82,38 @@ namespace StellarIndustries.Core.Data
                 Notes = "JWST (2025) could not yet decide whether TRAPPIST-1e has an atmosphere." });
 
             // --- exoplanets --------------------------------------------------------------------
-            AddExo(db, "proxima_b", "Proxima b", "alpha_centauri", BodyType.Planet, "Confirmed (2016) · min. mass 1.055 M⊕ · 11.19 d orbit",
+            AddExo(db, "proxima_b", "Proxima b", "alpha_centauri", BodyType.Planet, "Confirmed (2016) · min. mass 1.055 Earth masses · 11.19 d orbit",
                 massEarth: 1.055, radiusEarth: 0, aAU: 0.04848, flux: -1, teqK: 234, transmission: 0.8,
                 desc: "In the habitable zone of Proxima Centauri - but whether it has an atmosphere is unknown. Probably tidally locked.",
                 deposits: new[] { ("iron_ore", 1.1), ("quartz_sand", 0.9), ("regolith", 1.2), ("water_ice", 0.8), ("rare_earths", 0.5) },
                 hazards: new[] { "Stellar flares (brightness x100 within hours)", "Likely tidally locked", "Atmosphere unknown" });
-            AddExo(db, "proxima_d", "Proxima d", "alpha_centauri", BodyType.Planet, "Confirmed (2022) · min. mass 0.26 M⊕ · 5.12 d orbit",
+            AddExo(db, "proxima_d", "Proxima d", "alpha_centauri", BodyType.Planet, "Confirmed (2022) · min. mass 0.26 Earth masses · 5.12 d orbit",
                 massEarth: 0.26, radiusEarth: 0, aAU: KeplerAU(0.122, 5.122), flux: -1, teqK: 0, transmission: 0.8,
                 desc: "Small, hot inner world. Rich sunlight for solar industry, no water expected.",
                 deposits: new[] { ("iron_ore", 1.3), ("quartz_sand", 1.0), ("regolith", 1.0) },
                 hazards: new[] { "Stellar flares", "Close orbit: likely tidally locked (assumption)" });
-            AddExo(db, "barnard_e", "Barnard's Star e", "barnard", BodyType.Planet, "Confirmed (2025) · min. mass 0.193 M⊕ · 6.74 d orbit",
+            AddExo(db, "barnard_e", "Barnard's Star e", "barnard", BodyType.Planet, "Confirmed (2025) · min. mass 0.193 Earth masses · 6.74 d orbit",
                 massEarth: 0.193, radiusEarth: 0, aAU: 0.0381, flux: -1, teqK: 0, transmission: 0.8,
                 desc: "Least massive planet ever found by the radial-velocity method. Too hot for liquid water, ideal for solar-powered mining.",
                 deposits: new[] { ("iron_ore", 1.2), ("quartz_sand", 1.0), ("regolith", 1.0), ("rare_earths", 0.7) },
                 hazards: new[] { "Inside the inner edge of the habitable zone" });
-            AddExo(db, "eps_eri_b", "Epsilon Eridani b (Ægir)", "eps_eridani", BodyType.GasGiant, "Confirmed (2000) · ~318 M⊕ (≈1 Jupiter) · 3.53 AU",
+            AddExo(db, "eps_eri_b", "Epsilon Eridani b (Ægir)", "eps_eridani", BodyType.GasGiant, "Confirmed (2000) · ~318 Earth masses (about 1 Jupiter) · 3.53 AU",
                 massEarth: 318, radiusEarth: 11.2, aAU: 3.53, flux: -1, teqK: 0, transmission: 1.0,
                 desc: "Jupiter-like gas giant. Orbital stations scoop helium-3 from its atmosphere; sunlight is too weak for solar power - use fusion.",
                 deposits: new[] { ("helium3", 2.5) },
                 hazards: new[] { "No solid surface: orbital industry only", "Weak sunlight (~2.6% of Earth)" });
-            AddExo(db, "trappist1_e", "TRAPPIST-1e", "trappist1", BodyType.Planet, "Confirmed · 0.692 M⊕ · 0.920 R⊕ · 6.10 d orbit",
+            AddExo(db, "trappist1_e", "TRAPPIST-1e", "trappist1", BodyType.Planet, "Confirmed · 0.692 Earth masses · 0.920 Earth radii · 6.10 d orbit",
                 massEarth: 0.692, radiusEarth: 0.920, aAU: 0.02925, flux: 0.604, teqK: 249.7, transmission: 0.8,
                 desc: "One of the best-studied potentially habitable worlds. Mass and radius are both measured, so its gravity is well known.",
                 deposits: new[] { ("iron_ore", 1.0), ("quartz_sand", 1.0), ("water_ice", 1.2), ("regolith", 1.0), ("rare_earths", 0.5) },
                 hazards: new[] { "Atmosphere unknown (JWST 2025 inconclusive)" });
+
+            // Artist's impressions (assumption): textures of other bodies tinted by the star's light.
+            Visual(db, "proxima_b", "exo_rock_a", "#FFB08A", 0.25, "#FFC9A8");
+            Visual(db, "proxima_d", "exo_hot", tint: "#FFB38F");
+            Visual(db, "barnard_e", "exo_rock_c", tint: "#FFB89A");
+            Visual(db, "eps_eri_b", "jupiter", "#FFD9A8", 0.6, "#FFE2C2");
+            Visual(db, "trappist1_e", "exo_ice", "#FF9C80", 0.3, "#FFC0A8");
 
             // --- missions ---------------------------------------------------------------------
             foreach (var (sys, target, science) in new[] { ("alpha_centauri", "proxima_b", 4000.0), ("barnard", "barnard_e", 5000.0), ("eps_eridani", "eps_eri_b", 8000.0), ("trappist1", "trappist1_e", 15000.0) })
@@ -146,7 +153,16 @@ namespace StellarIndustries.Core.Data
 
             db.Add(new AchievementDef { Id = "first_probe", Name = "Pale Red Dot", Description = "Survey the Alpha Centauri system.", Condition = AchievementCondition.MissionCompleted, TargetId = "survey_alpha_centauri", IsObjective = true });
             db.Add(new AchievementDef { Id = "exoplanet", Name = "Another Sun", Description = "Establish industry on Proxima b.", Condition = AchievementCondition.LocationUnlocked, TargetId = "proxima_b", IsObjective = true });
-            db.Add(new AchievementDef { Id = "four_stars", Name = "Interstellar Network", Description = "Reach planets in 4 star systems.", Condition = AchievementCondition.MissionCompleted, TargetId = "seed_trappist1_e" });
+            db.Add(new AchievementDef { Id = "four_stars", Name = "Interstellar Network", Description = "Have industry in 4 star systems (incl. Sol).", Condition = AchievementCondition.StarSystemsReached, Threshold = 4 });
+        }
+
+        static double StarMassSun(string sys) => sys == "alpha_centauri" ? 0.122 : sys == "barnard" ? 0.162 : sys == "trappist1" ? 0.09 : sys == "eps_eridani" ? 0.82 : 1;
+
+        static void Visual(GameDatabase db, string id, string texture, string atmoHex = "", double atmo = 0, string tint = null)
+        {
+            var l = db.Location(id);
+            l.SurfaceTexture = texture; l.AtmosphereColorHex = atmoHex; l.AtmosphereThickness = atmo;
+            if (tint != null) l.TextureTintHex = tint;
         }
 
         static double Ra(double h, double m, double s) => (h + m / 60 + s / 3600) * 15;
@@ -171,6 +187,9 @@ namespace StellarIndustries.Core.Data
                 DistanceAU = aAU, IrradianceWm2 = Math.Round(SpacePhysics.SolarConstant * f, 1), SurfaceTransmission = transmission,
                 TemperatureC = Math.Round(t - 273.15), Atmosphere = type == BodyType.GasGiant ? "Hydrogen / helium" : "Unknown",
                 ColorHex = st.ColorHex, VisualRadius = 1, Hazards = new List<string>(hazards),
+                ArtistImpression = true, TextureTintHex = st.ColorHex,
+                // Close-in planets are probably tidally locked: one rotation per orbit (period from Kepler's third law).
+                RotationPeriodHours = Math.Round(365.25 * 24 * Math.Sqrt(aAU * aAU * aAU / Math.Max(0.05, StarMassSun(sys))), 1),
             };
             foreach (var (res, rich) in deposits) loc.Deposits.Add(new DepositDef(res, rich));
             db.Add(loc);

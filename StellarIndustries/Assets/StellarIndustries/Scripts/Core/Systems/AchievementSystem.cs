@@ -25,6 +25,8 @@ namespace StellarIndustries.Core.Systems
                 case AchievementCondition.TechCompleted: return state.Research.Completed.Contains(a.TargetId) ? 1 : 0;
                 case AchievementCondition.BuildingCount: return state.Buildings.Count;
                 case AchievementCondition.RocketsLaunched: return state.Stats.RocketsLaunched;
+                case AchievementCondition.StarSystemsReached:
+                    return state.UnlockedLocations.Select(l => db.Location(l)?.StarSystem ?? "sol").Distinct().Count();
                 default: return 0;
             }
         }

@@ -2,6 +2,7 @@ using System.Linq;
 using StellarIndustries.Core.Data;
 using StellarIndustries.Core.Systems;
 using StellarIndustries.Core.Util;
+using StellarIndustries.Core.State;
 using UnityEngine;
 
 namespace StellarIndustries.Unity.UI.Panels
@@ -41,6 +42,8 @@ namespace StellarIndustries.Unity.UI.Panels
             GUILayout.EndArea();
         }
 
+        readonly System.Collections.Generic.Dictionary<string, bool> expanded = new System.Collections.Generic.Dictionary<string, bool>();
+
         void DrawFacilities()
         {
             var list = Sim.Production.BuildingsAt(Loc);
@@ -48,47 +51,72 @@ namespace StellarIndustries.Unity.UI.Panels
             foreach (var group in list.GroupBy(b => b.DefId).OrderBy(g => Sim.Db.Buildings.FindIndex(d => d.Id == g.Key)))
             {
                 var def = Sim.Db.Building(group.Key);
-                GUILayout.Label(def.Name + "  x" + group.Count(), Theme.Header);
-                foreach (var b in group.OrderBy(x => x.Uid))
-                {
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Lv " + b.Level, Theme.Label, GUILayout.Width(38));
-                    if (def.PowerOutput > 0)
-                    {
-                        double mw = def.PowerOutput * Core.Systems.ProductionSystem.LevelSpeed(def, b.Level) * Sim.Modifiers.Multiplier(ModifierType.EnergyOutput) * b.EffectiveSpeed;
-                        var fuel = Sim.Db.Recipe(b.RecipeId);
-                        GUILayout.Label(new GUIContent(Gx.Colored("+" + NumberFormat.Short(mw) + " MW", Theme.Good) + (fuel != null ? "  burns " + Fmt.Amounts(Sim.Db, fuel.Inputs) + "/" + fuel.Duration + "s" : ""),
-                            def.Description), Theme.Label, GUILayout.Width(250));
-                    }
-                    else if (def.Recipes.Count > 0)
-                    {
-                        var rec = Sim.Db.Recipe(b.RecipeId);
-                        if (GUILayout.Button("<", Theme.Button, GUILayout.Width(22))) Sim.Construction.CycleRecipe(b.Uid, -1);
-                        GUILayout.Label(new GUIContent(rec?.Name ?? "-", Fmt.Recipe(Sim.Db, rec)), Theme.Label, GUILayout.Width(170));
-                        if (GUILayout.Button(">", Theme.Button, GUILayout.Width(22))) Sim.Construction.CycleRecipe(b.Uid, 1);
-                    }
-                    else GUILayout.Label(new GUIContent("+" + NumberFormat.Percent(def.StorageBonus * b.Level) + " storage", def.Description), Theme.Label, GUILayout.Width(250));
+                var items = group.OrderBy(x => x.Uid).ToList();
+                if (!expanded.TryGetValue(def.Id, out bool open)) open = items.Count <= 3;
+                int working = items.Count(b => b.Status == BuildingStatus.Working), paused = items.Count(b => !b.Enabled);
+                int blocked = items.Count(b => b.Enabled && b.Status != BuildingStatus.Working && b.Status != BuildingStatus.LowPower && b.Status != BuildingStatus.Idle);
 
-                    GUILayout.Label(Fmt.Status(b.Status), Theme.Small, GUILayout.Width(90));
-                    if (def.PowerOutput <= 0 && def.Recipes.Count > 0) Gx.LayoutBar((float)b.Progress, Theme.Cyan, NumberFormat.Percent(b.EffectiveSpeed), 70, 14);
-                    else GUILayout.Space(74);
-                    var upCost = Sim.Construction.UpgradeCost(b);
-                    bool canUp = Sim.Construction.CanUpgrade(b, out var why);
-                    if (Gx.Button("Upgrade", canUp, "Level " + (b.Level + 1) + ": " + Fmt.Amounts(Sim.Db, upCost) + (canUp ? "" : "\n" + why), Theme.Button, GUILayout.Width(70)))
-                        Sim.Construction.Upgrade(b.Uid);
-                    if (GUILayout.Button(new GUIContent(b.Enabled ? "Pause" : "Run", b.Enabled ? "Pause this facility" : "Resume production"), Theme.Button, GUILayout.Width(50)))
-                        Sim.Construction.SetEnabled(b.Uid, !b.Enabled);
-                    if (GUILayout.Button(new GUIContent(Prio[b.Priority], "Priority: high-priority facilities receive inputs first"), Theme.Button, GUILayout.Width(46)))
-                        Sim.Construction.SetPriority(b.Uid, (b.Priority + 1) % 3);
-                    bool armed = armedDemolish == b.Uid && Time.unscaledTime - armedTime < 3;
-                    if (GUILayout.Button(new GUIContent(armed ? "Sure?" : "X", "Demolish (refunds 50% of the base cost). Click twice."), armed ? Theme.Accent : Theme.Button, GUILayout.Width(armed ? 50 : 24)))
-                    {
-                        if (armed) { Sim.Construction.Demolish(b.Uid); armedDemolish = 0; Gx.Changed(); }
-                        else { armedDemolish = b.Uid; armedTime = Time.unscaledTime; }
-                    }
-                    GUILayout.EndHorizontal();
+                GUILayout.BeginVertical(Theme.Card);
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button((open ? "-  " : "+  ") + "<b>" + def.Name + "</b>  <color=#8498B0>x" + items.Count + "</color>", Theme.Label, GUILayout.Width(250)))
+                { expanded[def.Id] = !open; Gx.Changed(); }
+                Gx.Pill(working + " working", Theme.Good, 86);
+                if (blocked > 0) Gx.Pill(blocked + " blocked", Theme.Warn, 80);
+                if (paused > 0) Gx.Pill(paused + " paused", Theme.Dim, 76);
+                GUILayout.FlexibleSpace();
+                int upgradable = items.Count(b => Sim.Construction.CanUpgrade(b, out _));
+                if (Gx.Button("Upgrade all", upgradable > 0, upgradable + " can be upgraded now (cheapest first)", Theme.Button, GUILayout.Width(96)))
+                {
+                    foreach (var b in items.OrderBy(b => b.Level)) Sim.Construction.Upgrade(b.Uid);
                 }
+                bool anyRunning = items.Any(b => b.Enabled);
+                if (Gx.Button(anyRunning ? "Pause all" : "Run all", true, null, Theme.Button, GUILayout.Width(80)))
+                    foreach (var b in items) Sim.Construction.SetEnabled(b.Uid, !anyRunning);
+                GUILayout.EndHorizontal();
+                if (open) foreach (var b in items) DrawBuildingRow(def, b);
+                GUILayout.EndVertical();
             }
+        }
+
+        void DrawBuildingRow(BuildingDef def, Core.State.BuildingInstance b)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Lv " + b.Level, Theme.Label, GUILayout.Width(40));
+            if (def.PowerOutput > 0)
+            {
+                double mw = def.PowerOutput * Core.Systems.ProductionSystem.LevelSpeed(def, b.Level) * Sim.Modifiers.Multiplier(ModifierType.EnergyOutput) * b.EffectiveSpeed;
+                var fuel = Sim.Db.Recipe(b.RecipeId);
+                GUILayout.Label(new GUIContent(Gx.Colored("+" + NumberFormat.Short(mw) + " MW", Theme.Good) + (fuel != null ? Gx.Colored("  burns " + Fmt.Amounts(Sim.Db, fuel.Inputs), Theme.Dim) : ""),
+                    def.Description), Theme.Label, GUILayout.Width(258));
+            }
+            else if (def.Recipes.Count > 0)
+            {
+                var rec = Sim.Db.Recipe(b.RecipeId);
+                if (GUILayout.Button(new GUIContent("<", "Previous recipe"), Theme.Button, GUILayout.Width(26))) Sim.Construction.CycleRecipe(b.Uid, -1);
+                GUILayout.Label(new GUIContent(rec?.Name ?? "-", Fmt.Recipe(Sim.Db, rec)), Theme.Label, GUILayout.Width(180));
+                if (GUILayout.Button(new GUIContent(">", "Next recipe"), Theme.Button, GUILayout.Width(26))) Sim.Construction.CycleRecipe(b.Uid, 1);
+            }
+            else GUILayout.Label(new GUIContent("+" + NumberFormat.Percent(def.StorageBonus * b.Level) + " storage", def.Description), Theme.Label, GUILayout.Width(258));
+
+            var (st, sc) = Fmt.StatusPill(b.Status);
+            Gx.Pill(st, sc, 96);
+            if (def.PowerOutput <= 0 && def.Recipes.Count > 0) Gx.LayoutBar((float)b.Progress, new Color(0.25f, 0.8f, 1f, 0.9f), NumberFormat.Percent(b.EffectiveSpeed), 78, 16);
+            else GUILayout.Space(82);
+            var upCost = Sim.Construction.UpgradeCost(b);
+            bool canUp = Sim.Construction.CanUpgrade(b, out var why);
+            if (Gx.Button("Upgrade", canUp, "Level " + (b.Level + 1) + ": " + Fmt.Amounts(Sim.Db, upCost) + (canUp ? "" : "\n" + why), Theme.Button, GUILayout.Width(76)))
+                Sim.Construction.Upgrade(b.Uid);
+            if (GUILayout.Button(new GUIContent(b.Enabled ? "Pause" : "Run", b.Enabled ? "Pause this facility" : "Resume production"), Theme.Button, GUILayout.Width(56)))
+                Sim.Construction.SetEnabled(b.Uid, !b.Enabled);
+            if (GUILayout.Button(new GUIContent(Prio[b.Priority], "Priority: high-priority facilities receive inputs first"), Theme.Button, GUILayout.Width(50)))
+                Sim.Construction.SetPriority(b.Uid, (b.Priority + 1) % 3);
+            bool armed = armedDemolish == b.Uid && Time.unscaledTime - armedTime < 3;
+            if (GUILayout.Button(new GUIContent(armed ? "Sure?" : "X", "Demolish (refunds 50% of the base cost). Click twice."), armed ? Theme.Accent : Theme.Button, GUILayout.Width(armed ? 54 : 28)))
+            {
+                if (armed) { Sim.Construction.Demolish(b.Uid); armedDemolish = 0; Gx.Changed(); }
+                else { armedDemolish = b.Uid; armedTime = Time.unscaledTime; }
+            }
+            GUILayout.EndHorizontal();
         }
 
         void DrawConstruct()
@@ -100,7 +128,7 @@ namespace StellarIndustries.Unity.UI.Panels
                 var problem = Sim.Construction.PlacementProblem(def, Loc);
                 if (problem != null && problem.StartsWith("Requires research")) { locked++; continue; }
                 if (last != def.Category) { GUILayout.Label(def.Category.ToString(), Theme.Header); last = def.Category; }
-                GUILayout.BeginHorizontal(Theme.Box);
+                GUILayout.BeginHorizontal(Theme.Card);
                 GUILayout.BeginVertical();
                 int owned = Sim.Construction.CountAt(def.Id, Loc);
                 GUILayout.Label(Gx.Colored(def.Name, Theme.Cyan) + (owned > 0 ? Gx.Colored("  (" + owned + " built)", Theme.Dim) : ""), Theme.Label);

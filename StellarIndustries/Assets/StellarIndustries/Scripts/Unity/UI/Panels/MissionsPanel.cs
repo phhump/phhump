@@ -36,6 +36,7 @@ namespace StellarIndustries.Unity.UI.Panels
             }
 
             GUILayout.Label("Available missions", Theme.Header);
+            if (!Sim.Missions.AvailableMissions().Any()) GUILayout.Label("No missions available right now.", Theme.DimLabel);
             foreach (var m in Sim.Missions.AvailableMissions()) DrawMission(m);
 
             var upcoming = Sim.Db.Missions.Where(m => !Sim.Missions.IsAvailable(m) && (m.Repeatable || Sim.State.Completions(m.Id) == 0)).ToList();
@@ -45,6 +46,8 @@ namespace StellarIndustries.Unity.UI.Panels
                 foreach (var m in upcoming)
                 {
                     string req = !string.IsNullOrEmpty(m.RequiredTech) && !Sim.State.Research.Completed.Contains(m.RequiredTech) ? "research " + Sim.Db.Tech(m.RequiredTech)?.Name
+                               : m.RequiredMissions.Any(x => Sim.State.Completions(x) == 0) ? "complete " + string.Join(", ", m.RequiredMissions.Where(x => Sim.State.Completions(x) == 0).Select(x => Sim.Db.Mission(x)?.Name))
+                               : !Sim.State.IsUnlocked(m.Origin) ? "a base on " + Sim.Db.Location(m.Origin)?.Name
                                : "reach " + string.Join(", ", m.RequiredLocations.Select(l => Sim.Db.Location(l)?.Name));
                     GUILayout.Label(Gx.Colored(m.Name, Theme.Dim) + Gx.Colored("  - requires " + req, Theme.Dim), Theme.Small);
                 }
@@ -55,7 +58,7 @@ namespace StellarIndustries.Unity.UI.Panels
 
         void DrawMission(MissionDef m)
         {
-            GUILayout.BeginVertical(Theme.Box);
+            GUILayout.BeginVertical(Theme.Card);
             bool first = Sim.State.Completions(m.Id) == 0;
             GUILayout.Label(Gx.Colored(m.Name, Theme.Cyan) + Gx.Colored("  " + Sim.Db.Location(m.Origin).Name + " -> " + Sim.Db.Location(m.Destination).Name, Theme.Dim) +
                             (first ? Gx.Colored("  NEW", Theme.Orange) : Gx.Colored("  completed " + Sim.State.Completions(m.Id) + "x", Theme.Dim)), Theme.Label);
@@ -103,7 +106,9 @@ namespace StellarIndustries.Unity.UI.Panels
             string cargoRes = ""; double cargo = 0;
             if (m.AllowsCargo && rocket.CargoCapacity > 0)
             {
-                var options = Sim.State.Location(m.Origin).Inventory.Where(kv => kv.Value >= 1 && Sim.Db.Resource(kv.Key)?.Category != ResourceCategory.Vehicle).Select(kv => kv.Key).OrderBy(k => k).ToList();
+                // Cargo: physical goods only (no vehicles, no massless laser charge).
+                var options = Sim.State.Location(m.Origin).Inventory.Where(kv => kv.Value >= 1 && Sim.Db.Resource(kv.Key)?.Category != ResourceCategory.Vehicle
+                                  && SpacePhysics.MassPerUnit(Sim.Db.Resource(kv.Key)) > 0).Select(kv => kv.Key).OrderBy(k => k).ToList();
                 if (options.Count > 0)
                 {
                     cargoSel.TryGetValue(m.Id, out int ci);

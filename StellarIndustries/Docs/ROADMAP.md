@@ -23,4 +23,7 @@
 - Not yet executed in the Unity Editor here (compiled against reference assemblies + headless tests only).
 - Planet excavation, terraforming, batteries, asteroid belt and outer planets are not implemented yet.
 - For standalone builds with the built-in pipeline, add *Standard* to *Project Settings → Graphics → Always Included Shaders* if objects appear pink (Shader.Find).
-- Placeholder visuals; IMGUI interface.
+- IMGUI interface (modernised); building models are still primitives.
+- Standalone builds: runtime-created materials use the `_EMISSION` and transparent variants of Standard/URP Lit. If city lights
+  or clouds are missing in a build, add those shader variants via a Shader Variant Collection (*Project Settings → Graphics*).
+- Exoplanet surfaces are artist's impressions (tinted textures of other bodies).

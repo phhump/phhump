@@ -8,79 +8,137 @@ using UnityEngine;
 
 namespace StellarIndustries.Unity.UI
 {
-    /// <summary>Sci-fi industrial look: dark panels, cyan accents, industrial orange highlights.</summary>
+    /// <summary>
+    /// Modern sci-fi look: rounded glass panels with soft shadows, gradient buttons, glossy progress bars,
+    /// status pills and real typefaces (Rajdhani for headings, Titillium Web for text; SIL OFL).
+    /// All textures are generated at runtime, so the theme works without any imported UI assets.
+    /// </summary>
     public static class Theme
     {
-        public static readonly Color Bg = new Color32(7, 11, 20, 255);
-        public static readonly Color Panel = new Color32(12, 20, 34, 236);
-        public static readonly Color PanelLight = new Color32(22, 34, 54, 240);
-        public static readonly Color Border = new Color32(43, 217, 254, 90);
-        public static readonly Color Cyan = new Color32(43, 217, 254, 255);
-        public static readonly Color Orange = new Color32(255, 140, 42, 255);
-        public static readonly Color Text = new Color32(216, 230, 243, 255);
-        public static readonly Color Dim = new Color32(127, 147, 168, 255);
-        public static readonly Color Good = new Color32(61, 220, 132, 255);
-        public static readonly Color Warn = new Color32(255, 176, 32, 255);
-        public static readonly Color Bad = new Color32(255, 90, 90, 255);
+        public static readonly Color Bg = new Color32(4, 7, 14, 255);
+        public static readonly Color Panel = new Color32(10, 17, 31, 225);
+        public static readonly Color PanelLight = new Color32(22, 34, 56, 235);
+        public static readonly Color Border = new Color32(90, 200, 255, 70);
+        public static readonly Color Cyan = new Color32(64, 224, 255, 255);
+        public static readonly Color Orange = new Color32(255, 150, 60, 255);
+        public static readonly Color Text = new Color32(222, 233, 245, 255);
+        public static readonly Color Dim = new Color32(132, 152, 176, 255);
+        public static readonly Color Good = new Color32(70, 226, 150, 255);
+        public static readonly Color Warn = new Color32(255, 186, 60, 255);
+        public static readonly Color Bad = new Color32(255, 96, 96, 255);
 
-        public static GUIStyle Box, Title, Header, Label, Small, DimLabel, Wrap, Button, Accent, Nav, NavActive, Node, Tooltip, BigTitle, Value, Field;
-        public static Texture2D White;
+        public static GUIStyle Box, Card, Title, Header, Label, Small, DimLabel, Wrap, Button, Accent, Nav, NavActive, Node, Tooltip, BigTitle, Value, Field, Pill, Glass, Rounded;
+        public static Texture2D White, Gloss;
+        public static Font Body, BodyBold, Display, DisplayBold;
         static bool ready;
 
         public static string Hex(Color c) => "#" + ColorUtility.ToHtmlStringRGB(c);
 
-        static Texture2D Tex(Color fill, Color border)
+        /// <summary>Anti-aliased rounded rectangle for 9-slicing: optional vertical gradient, 1px border and soft outer shadow.</summary>
+        static Texture2D RoundTex(int radius, Color top, Color bottom, Color border, int shadow = 0)
         {
-            var t = new Texture2D(8, 8, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp, hideFlags = HideFlags.DontSave };
-            for (int y = 0; y < 8; y++)
-                for (int x = 0; x < 8; x++)
-                    t.SetPixel(x, y, x == 0 || y == 0 || x == 7 || y == 7 ? border : fill);
+            int size = (radius + shadow) * 2 + 8;
+            var t = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, hideFlags = HideFlags.DontSave };
+            var px = new Color[size * size];
+            float inner = size - shadow * 2;
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    // signed distance to the rounded rect (inset by the shadow margin)
+                    float cx = Mathf.Clamp(x + 0.5f, shadow + radius, size - shadow - radius), cy = Mathf.Clamp(y + 0.5f, shadow + radius, size - shadow - radius);
+                    float d = Mathf.Sqrt((x + 0.5f - cx) * (x + 0.5f - cx) + (y + 0.5f - cy) * (y + 0.5f - cy)) - radius;
+                    float fillA = Mathf.Clamp01(0.5f - d);
+                    float k = Mathf.Clamp01((y - shadow) / Mathf.Max(1f, inner - 1));
+                    Color fill = Color.Lerp(bottom, top, k);           // texture y goes up
+                    float borderA = Mathf.Clamp01(1f - Mathf.Abs(d + 0.5f)) * border.a;
+                    Color c = fill; c.a *= fillA;
+                    c = Color.Lerp(c, new Color(border.r, border.g, border.b, Mathf.Max(c.a, border.a)), borderA);
+                    if (shadow > 0 && d > 0)
+                    {
+                        float sa = Mathf.Pow(Mathf.Clamp01(1 - d / shadow), 2) * 0.45f;
+                        c = new Color(0, 0, 0, Mathf.Max(c.a, sa));
+                    }
+                    px[y * size + x] = c;
+                }
+            t.SetPixels(px);
             t.Apply();
             return t;
         }
 
-        static GUIStyle Btn(Color fill, Color border, Color hover, Color text)
+        static GUIStyle Btn(Color top, Color bottom, Color border, Color hoverTop, Color hoverBottom, Color hoverBorder, Color text, int radius = 7)
         {
-            var s = new GUIStyle(GUI.skin.button) { fontSize = 13, alignment = TextAnchor.MiddleCenter, richText = true, padding = new RectOffset(8, 8, 4, 4), margin = new RectOffset(2, 2, 2, 2) };
-            s.normal.background = Tex(fill, border); s.normal.textColor = text;
-            s.hover.background = Tex(hover, border); s.hover.textColor = Color.white;
-            s.active.background = Tex(border, border); s.active.textColor = Color.white;
+            var s = new GUIStyle(GUI.skin.button) { fontSize = 14, alignment = TextAnchor.MiddleCenter, richText = true, padding = new RectOffset(10, 10, 4, 5), margin = new RectOffset(2, 2, 2, 2) };
+            if (BodyBold != null) s.font = BodyBold;
+            s.normal.background = RoundTex(radius, top, bottom, border); s.normal.textColor = text;
+            s.hover.background = RoundTex(radius, hoverTop, hoverBottom, hoverBorder); s.hover.textColor = Color.white;
+            s.active.background = RoundTex(radius, hoverBottom, hoverTop, hoverBorder); s.active.textColor = Color.white;
             s.onNormal = s.active; s.focused = s.normal;
-            s.border = new RectOffset(2, 2, 2, 2);
+            s.border = new RectOffset(radius + 4, radius + 4, radius + 4, radius + 4);
             return s;
         }
+
+        static Font LoadFont(string name) => Resources.Load<Font>("Fonts/" + name);
 
         public static void Ensure()
         {
             if (ready && White != null) return;
-            White = Tex(Color.white, Color.white);
-            Box = new GUIStyle(GUI.skin.box) { padding = new RectOffset(10, 10, 8, 8), border = new RectOffset(2, 2, 2, 2) };
-            Box.normal.background = Tex(Panel, Border);
-            Label = new GUIStyle(GUI.skin.label) { fontSize = 13, richText = true, wordWrap = false };
+            Body = LoadFont("TitilliumWeb-Regular"); BodyBold = LoadFont("TitilliumWeb-SemiBold");
+            Display = LoadFont("Rajdhani-SemiBold"); DisplayBold = LoadFont("Rajdhani-Bold");
+            White = new Texture2D(1, 1, TextureFormat.RGBA32, false) { hideFlags = HideFlags.DontSave };
+            White.SetPixel(0, 0, Color.white); White.Apply();
+            Gloss = new Texture2D(1, 16, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, hideFlags = HideFlags.DontSave };
+            for (int y = 0; y < 16; y++) Gloss.SetPixel(0, y, new Color(1, 1, 1, y > 8 ? 0.22f * (y - 8) / 7f : 0));
+            Gloss.Apply();
+
+            Box = new GUIStyle(GUI.skin.box) { padding = new RectOffset(14, 14, 12, 12), border = new RectOffset(26, 26, 26, 26), overflow = new RectOffset(10, 10, 10, 10) };
+            Box.normal.background = RoundTex(12, new Color32(14, 23, 41, 232), new Color32(8, 13, 25, 238), new Color(0.35f, 0.78f, 1f, 0.28f), 10);
+            Card = new GUIStyle(GUI.skin.box) { padding = new RectOffset(12, 12, 9, 9), margin = new RectOffset(0, 0, 3, 5), border = new RectOffset(13, 13, 13, 13) };
+            Card.normal.background = RoundTex(9, new Color32(26, 38, 62, 210), new Color32(17, 26, 44, 215), new Color(1f, 1f, 1f, 0.07f));
+            Glass = new GUIStyle(GUI.skin.box) { border = new RectOffset(4, 4, 4, 4) };
+            Glass.normal.background = RoundTex(0, new Color32(14, 22, 40, 238), new Color32(6, 10, 20, 242), new Color(0.35f, 0.78f, 1f, 0.0f));
+            Rounded = new GUIStyle { border = new RectOffset(9, 9, 9, 9) };
+            Rounded.normal.background = RoundTex(5, Color.white, Color.white, new Color(1, 1, 1, 0));
+
+            Label = new GUIStyle(GUI.skin.label) { fontSize = 14, richText = true, wordWrap = false, padding = new RectOffset(2, 2, 1, 1) };
+            if (Body != null) Label.font = Body;
             Label.normal.textColor = Text;
             Wrap = new GUIStyle(Label) { wordWrap = true };
-            Small = new GUIStyle(Label) { fontSize = 11 };
+            Small = new GUIStyle(Label) { fontSize = 12 };
             DimLabel = new GUIStyle(Small) { wordWrap = true };
             DimLabel.normal.textColor = Dim;
             Value = new GUIStyle(Label) { alignment = TextAnchor.MiddleRight };
-            Title = new GUIStyle(Label) { fontSize = 17, fontStyle = FontStyle.Bold };
-            Title.normal.textColor = Cyan;
-            Header = new GUIStyle(Label) { fontSize = 13, fontStyle = FontStyle.Bold, margin = new RectOffset(0, 0, 8, 2) };
+            Title = new GUIStyle(Label) { fontSize = 24, fontStyle = DisplayBold != null ? FontStyle.Normal : FontStyle.Bold };
+            if (DisplayBold != null) Title.font = DisplayBold;
+            Title.normal.textColor = Color.white;
+            Header = new GUIStyle(Label) { fontSize = 16, margin = new RectOffset(0, 0, 10, 3) };
+            if (Display != null) Header.font = Display;
             Header.normal.textColor = Orange;
-            BigTitle = new GUIStyle(Label) { fontSize = 46, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            BigTitle = new GUIStyle(Label) { fontSize = 64, alignment = TextAnchor.MiddleLeft };
+            if (DisplayBold != null) BigTitle.font = DisplayBold;
             BigTitle.normal.textColor = Color.white;
-            Button = Btn(PanelLight, Border, new Color32(30, 60, 90, 255), Text);
-            Accent = Btn(new Color32(120, 60, 10, 255), Orange, new Color32(170, 85, 15, 255), Color.white);
-            Nav = Btn(new Color32(10, 16, 28, 220), new Color32(43, 217, 254, 40), new Color32(25, 45, 70, 255), Text);
-            Nav.alignment = TextAnchor.MiddleLeft; Nav.fontSize = 14; Nav.padding = new RectOffset(12, 6, 6, 6);
-            NavActive = Btn(new Color32(18, 60, 85, 255), Cyan, new Color32(25, 75, 105, 255), Color.white);
-            NavActive.alignment = TextAnchor.MiddleLeft; NavActive.fontSize = 14; NavActive.padding = Nav.padding;
-            Node = new GUIStyle(Button) { alignment = TextAnchor.UpperLeft, fontSize = 12, wordWrap = true, padding = new RectOffset(8, 6, 5, 4) };
-            Tooltip = new GUIStyle(Wrap) { fontSize = 12, padding = new RectOffset(8, 8, 6, 6) };
-            Tooltip.normal.background = Tex(new Color32(5, 10, 18, 250), Cyan);
-            Field = new GUIStyle(GUI.skin.textField) { fontSize = 15, padding = new RectOffset(8, 8, 6, 6) };
-            Field.normal.background = Tex(new Color32(5, 10, 18, 255), Border); Field.normal.textColor = Color.white;
-            Field.focused.background = Tex(new Color32(5, 10, 18, 255), Cyan); Field.focused.textColor = Color.white;
+
+            Button = Btn(new Color32(36, 54, 86, 245), new Color32(22, 34, 58, 245), new Color(0.45f, 0.8f, 1f, 0.35f),
+                         new Color32(46, 82, 124, 255), new Color32(28, 52, 86, 255), new Color(0.45f, 0.9f, 1f, 0.9f), Text);
+            Accent = Btn(new Color32(255, 168, 82, 255), new Color32(226, 112, 28, 255), new Color(1f, 0.85f, 0.6f, 0.6f),
+                         new Color32(255, 190, 110, 255), new Color32(240, 132, 44, 255), new Color(1f, 0.95f, 0.8f, 1f), new Color32(30, 14, 0, 255));
+            Nav = Btn(new Color(0, 0, 0, 0), new Color(0, 0, 0, 0), new Color(0, 0, 0, 0), new Color32(30, 48, 78, 200), new Color32(22, 36, 60, 200), new Color(0.45f, 0.85f, 1f, 0.35f), Text, 8);
+            Nav.alignment = TextAnchor.MiddleLeft; Nav.fontSize = 15; Nav.padding = new RectOffset(16, 8, 6, 7);
+            if (Display != null) Nav.font = Display;
+            NavActive = Btn(new Color32(28, 86, 122, 240), new Color32(18, 56, 86, 240), new Color(0.45f, 0.9f, 1f, 0.85f), new Color32(34, 100, 140, 255), new Color32(22, 66, 100, 255), new Color(0.6f, 0.95f, 1f, 1f), Color.white, 8);
+            NavActive.alignment = TextAnchor.MiddleLeft; NavActive.fontSize = 15; NavActive.padding = Nav.padding;
+            if (Display != null) NavActive.font = Display;
+            Node = new GUIStyle(Button) { alignment = TextAnchor.UpperLeft, fontSize = 13, wordWrap = true, padding = new RectOffset(10, 8, 6, 5) };
+            if (Body != null) Node.font = Body;
+            Tooltip = new GUIStyle(Wrap) { fontSize = 13, padding = new RectOffset(12, 12, 8, 9), border = new RectOffset(13, 13, 13, 13) };
+            Tooltip.normal.background = RoundTex(8, new Color32(10, 18, 34, 250), new Color32(6, 11, 22, 250), new Color(0.4f, 0.9f, 1f, 0.8f));
+            Field = new GUIStyle(GUI.skin.textField) { fontSize = 17, padding = new RectOffset(12, 12, 7, 7), border = new RectOffset(11, 11, 11, 11) };
+            if (Body != null) Field.font = Body;
+            Field.normal.background = RoundTex(7, new Color32(6, 11, 22, 255), new Color32(10, 16, 30, 255), new Color(0.45f, 0.8f, 1f, 0.35f)); Field.normal.textColor = Color.white;
+            Field.focused.background = RoundTex(7, new Color32(6, 11, 22, 255), new Color32(10, 16, 30, 255), Cyan); Field.focused.textColor = Color.white;
+            Field.hover = Field.normal;
+            Pill = new GUIStyle(Small) { alignment = TextAnchor.MiddleCenter, padding = new RectOffset(8, 8, 1, 2), border = new RectOffset(9, 9, 9, 9), fontSize = 11 };
+            if (BodyBold != null) Pill.font = BodyBold;
+            Pill.normal.background = Rounded.normal.background;
             ready = true;
         }
     }
@@ -93,15 +151,44 @@ namespace StellarIndustries.Unity.UI
             var old = GUI.color; GUI.color = c; GUI.DrawTexture(r, Theme.White); GUI.color = old;
         }
 
+        /// <summary>Tinted rounded rectangle (9-sliced).</summary>
+        public static void RoundFill(Rect r, Color c)
+        {
+            if (Event.current.type != EventType.Repaint) return;
+            var old = GUI.color; GUI.color = c;
+            Theme.Rounded.Draw(r, false, false, false, false);
+            GUI.color = old;
+        }
+
+        static GUIStyle barText;
+
+        /// <summary>Glossy rounded progress bar.</summary>
         public static void Bar(Rect r, float f, Color c, string text = null)
         {
-            Fill(r, new Color(0, 0, 0, 0.45f));
-            Fill(new Rect(r.x, r.y, r.width * Mathf.Clamp01(f), r.height), c);
+            RoundFill(r, new Color(0, 0, 0, 0.5f));
+            float w = Mathf.Max(f > 0 ? Mathf.Min(r.height, r.width) : 0, r.width * Mathf.Clamp01(f));
+            if (w > 0)
+            {
+                var fill = new Rect(r.x, r.y, w, r.height);
+                RoundFill(fill, c);
+                if (Event.current.type == EventType.Repaint) GUI.DrawTexture(new Rect(fill.x + 2, fill.y, fill.width - 4, fill.height), Theme.Gloss);
+            }
             if (!string.IsNullOrEmpty(text))
             {
-                var s = new GUIStyle(Theme.Small) { alignment = TextAnchor.MiddleCenter };
-                GUI.Label(r, text, s);
+                if (barText == null) { barText = new GUIStyle(Theme.Small) { alignment = TextAnchor.MiddleCenter, fontSize = 11 }; barText.normal.textColor = Color.white; }
+                GUI.Label(r, text, barText);
             }
+        }
+
+        /// <summary>Status pill: tinted rounded badge with coloured text.</summary>
+        public static void Pill(string text, Color c, float width = 96)
+        {
+            var r = GUILayoutUtility.GetRect(width, 18, GUILayout.Width(width), GUILayout.Height(18));
+            r.y += 3;
+            RoundFill(r, new Color(c.r, c.g, c.b, 0.18f));
+            var old = Theme.Pill.normal.textColor; Theme.Pill.normal.textColor = c;
+            GUI.Label(r, text, Theme.Pill);
+            Theme.Pill.normal.textColor = old;
         }
 
         public static void LayoutBar(float f, Color c, string text = null, float width = 100, float height = 14)
@@ -120,11 +207,16 @@ namespace StellarIndustries.Unity.UI
             return r && enabled;
         }
 
-        public static void Swatch(Color c, float size = 10)
+        public static void Swatch(Color c, float size = 12)
         {
             var r = GUILayoutUtility.GetRect(size, size, GUILayout.Width(size), GUILayout.Height(size));
-            r.y += 4;
-            Fill(r, c);
+            r.y += 5;
+            if (Event.current.type == EventType.Repaint)
+            {
+                var old = GUI.color; GUI.color = c;
+                GUI.DrawTexture(r, Views.VisualFactory.CircleTexture);
+                GUI.color = old;
+            }
         }
 
         /// <summary>
@@ -133,7 +225,12 @@ namespace StellarIndustries.Unity.UI
         /// </summary>
         public static void Changed() => GUIUtility.ExitGUI();
 
-        public static void HLine() { var r = GUILayoutUtility.GetRect(10, 1, GUILayout.ExpandWidth(true), GUILayout.Height(1)); Fill(r, Theme.Border); }
+        public static void HLine()
+        {
+            var r = GUILayoutUtility.GetRect(10, 2, GUILayout.ExpandWidth(true), GUILayout.Height(2));
+            Fill(new Rect(r.x, r.y, r.width * 0.25f, 2), Theme.Cyan * new Color(1, 1, 1, 0.8f));
+            Fill(new Rect(r.x + r.width * 0.25f, r.y + 0.5f, r.width * 0.75f, 1), Theme.Border);
+        }
 
         public static string Colored(string s, Color c) => "<color=" + Theme.Hex(c) + ">" + s + "</color>";
 
@@ -178,6 +275,22 @@ namespace StellarIndustries.Unity.UI
             string inp = r.Inputs.Count == 0 ? (string.IsNullOrEmpty(r.RequiredDeposit) ? "-" : "deposit") : Amounts(db, r.Inputs);
             string outp = r.Outputs.Count == 0 ? "energy" : Amounts(db, r.Outputs);
             return inp + "  ->  " + outp + "  (" + r.Duration.ToString("0.#") + "s)";
+        }
+
+        public static (string text, Color color) StatusPill(BuildingStatus s)
+        {
+            switch (s)
+            {
+                case BuildingStatus.Working: return ("Working", Theme.Good);
+                case BuildingStatus.LowPower: return ("Low power", Theme.Warn);
+                case BuildingStatus.NoPower: return ("No power", Theme.Bad);
+                case BuildingStatus.MissingInput: return ("Missing input", Theme.Warn);
+                case BuildingStatus.OutputFull: return ("Storage full", Theme.Warn);
+                case BuildingStatus.Paused: return ("Paused", Theme.Dim);
+                case BuildingStatus.NoDeposit: return ("No deposit", Theme.Bad);
+                case BuildingStatus.NoFuel: return ("No fuel", Theme.Bad);
+                default: return ("Standby", Theme.Dim);
+            }
         }
 
         public static string Status(BuildingStatus s)

@@ -33,7 +33,7 @@ namespace StellarIndustries.Unity.Views
         bool galaxyDirty = true;
         /// <summary>Map units per sqrt(light-year): distances are compressed so 4 ly and 40 ly fit on one screen.</summary>
         public const float GalaxyScale = 40f;
-        GameObject planet;
+        GameObject planet, planetRig;
         string shownLocation;
         bool buildingsDirty = true, mapDirty = true;
         float statusTimer;
@@ -50,10 +50,10 @@ namespace StellarIndustries.Unity.Views
         readonly List<RocketFx> activeRockets = new List<RocketFx>();
         readonly Stack<RocketFx> rocketPool = new Stack<RocketFx>();
 
-        class MapBody { public LocationDef Def; public Transform T, Pivot; public Renderer R; public float Phase; public Material Mat; }
+        class MapBody { public LocationDef Def; public Transform T, Pivot; public Renderer R; public float Phase; public Material Mat, DimMat; }
         readonly Dictionary<string, MapBody> mapBodies = new Dictionary<string, MapBody>();
         readonly List<GameObject> missionDots = new List<GameObject>();
-        Material lockedBodyMat, dotMat;
+        Material dotMat;
         readonly Dictionary<string, Texture2D> planetTextures = new Dictionary<string, Texture2D>();
 
         public string FocusBody;
@@ -67,10 +67,9 @@ namespace StellarIndustries.Unity.Views
             galaxyRoot = new GameObject("GalaxyView").transform; galaxyRoot.SetParent(root, false);
             SetupCamera();
             SetupLighting();
-            VisualFactory.Starfield(root, 2500, 900);
+            if (VisualFactory.SkySphere(root, 2400) == null) VisualFactory.Starfield(root, 2500, 900);
             blockedMat = VisualFactory.Lit(new Color(1f, 0.55f, 0.1f));
             pausedMat = VisualFactory.Lit(new Color(0.25f, 0.25f, 0.28f));
-            lockedBodyMat = VisualFactory.Lit(new Color(0.3f, 0.32f, 0.36f));
             dotMat = VisualFactory.Unlit(new Color(0.3f, 0.95f, 1f));
             gc.SimulationStarted += OnSimulationStarted;
             gc.SimulationStopped += OnSimulationStopped;
@@ -89,8 +88,10 @@ namespace StellarIndustries.Unity.Views
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.012f, 0.02f, 0.045f);
             cam.nearClipPlane = 0.03f;
-            cam.farClipPlane = 3000;
-            cam.fieldOfView = 45;
+            cam.farClipPlane = 6000;
+            cam.fieldOfView = 40;
+            cam.allowHDR = true;
+            cam.allowMSAA = true;
         }
 
         void SetupLighting()
@@ -107,12 +108,13 @@ namespace StellarIndustries.Unity.Views
                 sun = new GameObject("Sun Light").AddComponent<Light>();
                 sun.type = LightType.Directional;
             }
-            sun.transform.rotation = Quaternion.Euler(25, -55, 0);
-            sun.intensity = 1.25f;
-            sun.color = new Color(1f, 0.97f, 0.92f);
+            // Sunlight from the front-left: a three-quarter lit planet with a visible terminator and night side.
+            sun.transform.rotation = Quaternion.LookRotation(new Vector3(0.75f, -0.12f, 0.65f));
+            sun.intensity = 1.35f;
+            sun.color = new Color(1f, 0.98f, 0.95f);
             sun.shadows = LightShadows.None;
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.10f, 0.12f, 0.18f);
+            RenderSettings.ambientLight = new Color(0.035f, 0.04f, 0.055f); // space is dark: night sides stay dark
             RenderSettings.skybox = null;
         }
 
@@ -158,13 +160,39 @@ namespace StellarIndustries.Unity.Views
             if (def == null) return;
             shownLocation = id;
             ClearBuildings();
-            if (planet != null) Destroy(planet);
-            planet = VisualFactory.Primitive(PrimitiveType.Sphere, "Planet " + def.Name, locationRoot);
+            if (planetRig != null) Destroy(planetRig);
+            planetRig = new GameObject("Planet rig " + def.Name);
+            planetRig.transform.SetParent(locationRoot, false);
+            var tilt = new GameObject("Axial tilt").transform;
+            tilt.SetParent(planetRig.transform, false);
+            tilt.localRotation = Quaternion.Euler(0, 0, -(float)def.AxialTiltDeg);
+            planet = VisualFactory.Primitive(PrimitiveType.Sphere, "Planet " + def.Name, tilt);
             planet.transform.localScale = Vector3.one * 3f;
-            planet.GetComponent<Renderer>().sharedMaterial = VisualFactory.Lit(Color.white, 0.1f, TextureFor(def));
+            planet.GetComponent<Renderer>().sharedMaterial = VisualFactory.PlanetMaterial(def);
+            float spin = SpinSpeed(def);
+            planet.AddComponent<Spin>().DegreesPerSecond = spin;
+            var cloudTex = VisualFactory.LoadTexture(def.CloudTexture);
+            if (cloudTex != null)
+            {
+                var clouds = VisualFactory.Primitive(PrimitiveType.Sphere, "Clouds", tilt);
+                clouds.transform.localScale = Vector3.one * 3.03f;
+                var cm = VisualFactory.Lit(Color.white, 0f, cloudTex);
+                VisualFactory.MakeTransparent(cm);
+                clouds.GetComponent<Renderer>().sharedMaterial = cm;
+                clouds.AddComponent<Spin>().DegreesPerSecond = spin * 1.15f;
+            }
+            if (def.AtmosphereThickness > 0)
+            {
+                var c = VisualFactory.Hex(def.AtmosphereColorHex, new Color(0.45f, 0.7f, 1f));
+                c.a = Mathf.Clamp01(0.9f * (float)def.AtmosphereThickness);
+                VisualFactory.Billboard("Atmosphere", planetRig.transform, VisualFactory.HaloTexture, c, 3f / 0.72f);
+            }
             buildingsDirty = true;
             targetDistance = 6.5f;
         }
+
+        /// <summary>Visual spin: one sidereal day = 2.5 real seconds per hour (Earth ≈ 1 turn per minute), clamped.</summary>
+        static float SpinSpeed(LocationDef def) => Mathf.Clamp(360f / (float)(System.Math.Max(1, def.RotationPeriodHours) * 2.5), 0.12f, 12f);
 
         void ClearBuildings()
         {
@@ -301,7 +329,12 @@ namespace StellarIndustries.Unity.Views
             mapBodies.Clear();
             var sunGo = VisualFactory.Primitive(PrimitiveType.Sphere, "Sun", mapRoot);
             sunGo.transform.localScale = Vector3.one * 7f;
-            sunGo.GetComponent<Renderer>().sharedMaterial = VisualFactory.Unlit(new Color(1f, 0.85f, 0.45f));
+            var sunMat = VisualFactory.Unlit(new Color(1f, 0.92f, 0.75f));
+            var sunTex = VisualFactory.LoadTexture("sun");
+            if (sunTex != null) sunMat.mainTexture = sunTex;
+            sunGo.GetComponent<Renderer>().sharedMaterial = sunMat;
+            sunGo.AddComponent<Spin>().DegreesPerSecond = 2;
+            VisualFactory.Billboard("Sun glow", mapRoot, VisualFactory.GlowTexture, new Color(1f, 0.78f, 0.4f, 0.85f), 24f);
             foreach (var def in gc.Db.Locations)
             {
                 if (def.StarSystem != "sol") continue; // other stars are shown in the galaxy view
@@ -312,10 +345,18 @@ namespace StellarIndustries.Unity.Views
                 var body = VisualFactory.Primitive(PrimitiveType.Sphere, def.Name, mapRoot, true);
                 body.transform.localScale = Vector3.one * (float)(def.VisualRadius * 2);
                 body.AddComponent<BodyTag>().LocationId = def.Id;
-                var mat = VisualFactory.Lit(Color.white, 0.1f, TextureFor(def));
+                var mat = VisualFactory.PlanetMaterial(def);
+                var dim = new Material(mat) { color = mat.color * 0.35f };
                 var r = body.GetComponent<Renderer>();
                 r.sharedMaterial = mat;
-                mapBodies[def.Id] = new MapBody { Def = def, T = body.transform, Pivot = pivot, R = r, Mat = mat, Phase = (def.Id.GetHashCode() & 1023) / 1023f * Mathf.PI * 2 };
+                body.transform.localRotation = Quaternion.Euler(0, 0, -(float)def.AxialTiltDeg);
+                if (def.AtmosphereThickness > 0)
+                {
+                    var c = VisualFactory.Hex(def.AtmosphereColorHex, Color.cyan); c.a = 0.8f * (float)def.AtmosphereThickness;
+                    var halo = VisualFactory.Billboard("Atmosphere", body.transform, VisualFactory.HaloTexture, c, 1f / 0.72f);
+                    halo.transform.localPosition = Vector3.zero;
+                }
+                mapBodies[def.Id] = new MapBody { Def = def, T = body.transform, Pivot = pivot, R = r, Mat = mat, DimMat = dim, Phase = (def.Id.GetHashCode() & 1023) / 1023f * Mathf.PI * 2 };
             }
         }
 
@@ -335,10 +376,10 @@ namespace StellarIndustries.Unity.Views
             {
                 var b = kv.Value;
                 b.T.localPosition = BodyPosition(kv.Key, time);
-                b.T.Rotate(0, 20 * Time.deltaTime, 0, Space.Self);
+                b.T.Rotate(0, SpinSpeed(b.Def) * 3 * Time.deltaTime, 0, Space.Self);
                 b.Pivot.localPosition = string.IsNullOrEmpty(b.Def.ParentId) ? Vector3.zero : BodyPosition(b.Def.ParentId, time);
                 bool unlocked = sim != null && sim.State.IsUnlocked(kv.Key);
-                var m = unlocked ? b.Mat : lockedBodyMat;
+                var m = unlocked ? b.Mat : b.DimMat;
                 if (b.R.sharedMaterial != m) b.R.sharedMaterial = m;
             }
             // Missions in flight
@@ -398,8 +439,13 @@ namespace StellarIndustries.Unity.Views
                 var pos = StarPosition(s);
                 var go = VisualFactory.Primitive(PrimitiveType.Sphere, s.Name, galaxyRoot, true);
                 go.transform.localPosition = pos;
-                go.transform.localScale = Vector3.one * (1.6f + 2.2f * Mathf.Pow((float)System.Math.Max(1e-4, s.LuminositySun), 0.2f));
-                go.GetComponent<Renderer>().sharedMaterial = VisualFactory.Unlit(VisualFactory.Hex(s.ColorHex, Color.white));
+                float size = 1.6f + 2.2f * Mathf.Pow((float)System.Math.Max(1e-4, s.LuminositySun), 0.2f);
+                go.transform.localScale = Vector3.one * size;
+                var starColor = VisualFactory.Hex(s.ColorHex, Color.white);
+                go.GetComponent<Renderer>().sharedMaterial = VisualFactory.Unlit(Color.Lerp(starColor, Color.white, 0.55f));
+                var glowColor = starColor; glowColor.a = 0.9f;
+                var glow = VisualFactory.Billboard("Glow", go.transform, VisualFactory.GlowTexture, glowColor, 7f);
+                glow.transform.localPosition = Vector3.zero;
                 go.AddComponent<BodyTag>().LocationId = "sys:" + s.Id;
                 stars[s.Id] = go.transform;
                 if (s.Id == "sol") continue;
@@ -498,7 +544,7 @@ namespace StellarIndustries.Unity.Views
         {
             float dt = Time.deltaTime;
             if (sim != null && sim.State.CurrentLocation != shownLocation) ShowLocation(sim.State.CurrentLocation);
-            if (planet != null) planet.transform.Rotate(0, 5f * dt, 0, Space.World);
+
             if (buildingsDirty) SyncBuildings();
             statusTimer += dt;
             if (statusTimer > 0.25f) { statusTimer = 0; UpdateBuildingStatus(); }

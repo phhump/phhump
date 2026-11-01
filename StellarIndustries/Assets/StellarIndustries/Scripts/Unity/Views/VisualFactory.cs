@@ -44,6 +44,105 @@ namespace StellarIndustries.Unity.Views
 
         public static Material Unlit(Color c) => new Material(UnlitShader) { color = c };
 
+        // ------------------------------------------------------------------ HD assets
+        static readonly System.Collections.Generic.Dictionary<string, Texture2D> texCache = new System.Collections.Generic.Dictionary<string, Texture2D>();
+
+        /// <summary>Loads Resources/Textures/{name}; null if missing (callers fall back to procedural art).</summary>
+        public static Texture2D LoadTexture(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            if (texCache.TryGetValue(name, out var t)) return t;
+            t = Resources.Load<Texture2D>("Textures/" + name);
+            if (t != null) { t.anisoLevel = 8; t.wrapModeU = TextureWrapMode.Repeat; t.wrapModeV = TextureWrapMode.Clamp; }
+            texCache[name] = t;
+            return t;
+        }
+
+        /// <summary>Surface material from real textures (day map, optional city lights as emission), or procedural fallback.</summary>
+        public static Material PlanetMaterial(LocationDef def)
+        {
+            var tex = LoadTexture(def.SurfaceTexture);
+            if (tex == null) return Lit(Color.white, 0.1f, PlanetTexture(def, 1024, 512));
+            var m = Lit(Hex(def.TextureTintHex, Color.white), 0.12f, tex);
+            var night = LoadTexture(def.NightTexture);
+            if (night != null) EnableEmission(m, night, new Color(0.85f, 0.7f, 0.45f) * 0.55f);
+            return m;
+        }
+
+        public static void EnableEmission(Material m, Texture tex, Color color)
+        {
+            if (m.HasProperty("_EmissionMap")) m.SetTexture("_EmissionMap", tex);
+            if (m.HasProperty("_EmissionColor")) m.SetColor("_EmissionColor", color);
+            m.EnableKeyword("_EMISSION");
+            m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+        }
+
+        /// <summary>Switches a Standard / URP Lit material to alpha blending (used for the cloud layer).</summary>
+        public static void MakeTransparent(Material m)
+        {
+            m.SetOverrideTag("RenderType", "Transparent");
+            if (m.HasProperty("_Mode")) m.SetFloat("_Mode", 2);          // Standard: Fade
+            if (m.HasProperty("_Surface")) m.SetFloat("_Surface", 1);    // URP: Transparent
+            if (m.HasProperty("_Blend")) m.SetFloat("_Blend", 0);
+            if (m.HasProperty("_SrcBlend")) m.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            if (m.HasProperty("_DstBlend")) m.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            if (m.HasProperty("_ZWrite")) m.SetFloat("_ZWrite", 0);
+            m.DisableKeyword("_ALPHATEST_ON");
+            m.EnableKeyword("_ALPHABLEND_ON");
+            m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            m.renderQueue = (int)RenderQueue.Transparent;
+        }
+
+        static Texture2D glowTex, haloTex, circleTex;
+
+        /// <summary>Soft radial glow (stars, sun).</summary>
+        public static Texture2D GlowTexture => glowTex != null ? glowTex : (glowTex = Radial(256, r => Mathf.Pow(Mathf.Clamp01(1 - r), 2.4f)));
+
+        /// <summary>Atmospheric rim: transparent inside the planet disc (r &lt; 0.72), bright at the limb, fading outwards.</summary>
+        public static Texture2D HaloTexture => haloTex != null ? haloTex : (haloTex = Radial(256, r =>
+            r < 0.70f ? 0 : r < 0.74f ? Mathf.InverseLerp(0.70f, 0.74f, r) : Mathf.Pow(Mathf.Clamp01(1 - (r - 0.74f) / 0.26f), 2.2f)));
+
+        public static Texture2D CircleTexture => circleTex != null ? circleTex : (circleTex = Radial(64, r => Mathf.Clamp01((1 - r) * 32)));
+
+        static Texture2D Radial(int size, System.Func<float, float> alpha)
+        {
+            var t = new Texture2D(size, size, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Clamp, hideFlags = HideFlags.DontSave };
+            var px = new Color[size * size];
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = (x + 0.5f) / size * 2 - 1, dy = (y + 0.5f) / size * 2 - 1;
+                    px[y * size + x] = new Color(1, 1, 1, alpha(Mathf.Sqrt(dx * dx + dy * dy)));
+                }
+            t.SetPixels(px);
+            t.Apply(true);
+            return t;
+        }
+
+        /// <summary>Camera-facing quad with an alpha texture (glows, halos). Size is the full width in world units.</summary>
+        public static GameObject Billboard(string name, Transform parent, Texture tex, Color color, float size)
+        {
+            var go = Primitive(PrimitiveType.Quad, name, parent);
+            go.transform.localScale = Vector3.one * size;
+            var m = new Material(UnlitShader) { color = color, mainTexture = tex };
+            go.GetComponent<Renderer>().sharedMaterial = m;
+            go.AddComponent<FaceCamera>();
+            return go;
+        }
+
+        /// <summary>Huge inward-facing sphere with the Milky Way panorama (Sprites/Default renders both faces).</summary>
+        public static GameObject SkySphere(Transform parent, float radius)
+        {
+            var tex = LoadTexture("milky_way");
+            if (tex == null) return null;
+            var go = Primitive(PrimitiveType.Sphere, "Milky Way", parent);
+            go.transform.localScale = new Vector3(-radius * 2, radius * 2, radius * 2); // mirrored: seen from inside
+            var m = new Material(UnlitShader) { color = new Color(0.55f, 0.58f, 0.66f), mainTexture = tex, renderQueue = (int)RenderQueue.Background };
+            go.GetComponent<Renderer>().sharedMaterial = m;
+            go.AddComponent<FollowCamera>();
+            return go;
+        }
+
         public static Color Hex(string hex, Color fallback)
         {
             if (!string.IsNullOrEmpty(hex) && ColorUtility.TryParseHtmlString(hex, out var c)) return c;

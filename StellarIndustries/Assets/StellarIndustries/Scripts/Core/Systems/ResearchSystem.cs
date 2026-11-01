@@ -69,7 +69,7 @@ namespace StellarIndustries.Core.Systems
                 // Refund invested science and materials.
                 inv.Add(Hq, ScienceId, R.ActiveProgress, false);
                 var t = db.Tech(techId);
-                if (t != null) foreach (var c in t.MaterialCost) inv.Add(Hq, c.ResourceId, c.Amount, false);
+                if (t != null) foreach (var c in t.MaterialCost) inv.Add(Hq, c.ResourceId, c.Amount, false, ignoreCapacity: true);
                 R.ActiveTech = ""; R.ActiveProgress = 0;
             }
         }

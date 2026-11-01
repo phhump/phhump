@@ -73,6 +73,7 @@ namespace StellarIndustries.Core.Systems
         void TickLocation(LocationState loc, LocationDef locDef, List<BuildingInstance> list, double dt)
         {
             // ---- 1. Energy balance --------------------------------------------------
+            // Free sources (wind, solar) first; fuel-burning plants then only burn what the grid still needs.
             double supply = 0, demand = 0;
             double energyMult = mods.Multiplier(ModifierType.EnergyOutput);
             foreach (var b in list)
@@ -81,10 +82,9 @@ namespace StellarIndustries.Core.Systems
                 if (def == null) continue;
                 if (!b.Enabled) { b.Status = BuildingStatus.Paused; b.EffectiveSpeed = 0; continue; }
                 double lvl = LevelSpeed(def, b.Level);
-                if (def.PowerOutput > 0)
+                if (def.PowerOutput > 0 && def.PowerSource != PowerSource.Fuel)
                 {
                     double factor = SourceFactor(def, locDef);
-                    if (def.PowerSource == PowerSource.Fuel) factor = BurnFuel(b, def, lvl, dt);
                     supply += def.PowerOutput * lvl * energyMult * factor;
                     b.EffectiveSpeed = factor;
                     b.Status = factor > 0 ? BuildingStatus.Working : BuildingStatus.NoFuel;
@@ -94,6 +94,19 @@ namespace StellarIndustries.Core.Systems
                 {
                     demand += def.PowerUse * lvl;
                 }
+            }
+            foreach (var b in list)
+            {
+                var def = db.Building(b.DefId);
+                if (def == null || !b.Enabled || def.PowerOutput <= 0 || def.PowerSource != PowerSource.Fuel) continue;
+                double lvl = LevelSpeed(def, b.Level);
+                double capacity = def.PowerOutput * lvl * energyMult;
+                double needed = Math.Max(0, demand - supply);
+                double throttle = capacity > 0 ? Math.Min(1, needed / capacity) : 0;
+                double fuelled = throttle > 0 ? BurnFuel(b, def, lvl, dt * throttle) : 0;
+                supply += capacity * throttle * fuelled;
+                b.EffectiveSpeed = throttle * fuelled;
+                b.Status = throttle <= 0 ? BuildingStatus.Idle : fuelled > 0 ? BuildingStatus.Working : BuildingStatus.NoFuel;
             }
             loc.EnergySupply = supply;
             loc.EnergyDemand = demand;

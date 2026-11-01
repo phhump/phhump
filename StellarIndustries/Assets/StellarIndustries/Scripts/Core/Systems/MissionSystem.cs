@@ -171,7 +171,8 @@ namespace StellarIndustries.Core.Systems
                 foreach (var rw in m.RewardsAtDestination) inv.Add(m.Destination, rw.ResourceId, rw.Amount);
                 if (first) foreach (var rw in m.FirstTimeRewards) inv.Add(m.Destination, rw.ResourceId, rw.Amount);
                 foreach (var f in m.UnlockFeatures) if (!state.Features.Contains(f)) state.Features.Add(f);
-                if (r.Reusable) inv.Add(m.Origin, r.VehicleResourceId, 1, false);
+                // A returning reusable rocket always finds a pad, even if vehicle storage is full.
+                if (r.Reusable) inv.Add(m.Origin, r.VehicleResourceId, 1, false, ignoreCapacity: true);
                 events.Notify("Mission success: " + m.Name + (first ? " (first completion!)" : ""), NotificationLevel.Success);
             }
             else

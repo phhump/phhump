@@ -23,7 +23,7 @@ namespace StellarIndustries.Unity.UI.Panels
             foreach (var route in Sim.State.Routes)
             {
                 var m = Sim.Db.Mission(route.MissionId); var rk = Sim.Db.Rocket(route.RocketId);
-                GUILayout.BeginVertical(Theme.Box);
+                GUILayout.BeginVertical(Theme.Card);
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(Gx.Colored(m.Name, Theme.Cyan) + "  " + Sim.Db.Location(m.Origin).Name + " -> " + Sim.Db.Location(m.Destination).Name + Gx.Colored("  " + rk.Name, Theme.Dim), Theme.Label);
                 GUILayout.FlexibleSpace();

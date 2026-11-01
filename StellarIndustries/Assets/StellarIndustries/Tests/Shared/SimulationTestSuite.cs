@@ -47,6 +47,9 @@ namespace StellarIndustries.Tests
             ("Exoplanet data is physically consistent", ExoplanetData),
             ("Seed ship needs fusion, chemistry is not enough", SeedShipPhysics),
             ("Interstellar flow: survey, seed ship, colony industry", InterstellarFlow),
+            ("Regression: coal plants only burn what the grid needs", FuelThrottle),
+            ("Regression: reusable rocket returns despite full storage", RocketReturnOverflow),
+            ("Regression: star-system achievement counts systems", StarSystemAchievement),
             ("Bot playthrough reaches the Moon and harvests He-3", BotPlaythrough),
         };
 
@@ -529,6 +532,46 @@ namespace StellarIndustries.Tests
             Assert(sim.Construction.Build("coal_plant", "proxima_b") == null, "no coal plants without an oxygen atmosphere");
         }
 
+        static void FuelThrottle()
+        {
+            var sim = NewSim(31);
+            var coal = sim.Construction.Place(sim.Db.Building("coal_plant"), "earth");
+            Give(sim, "coal", 100);
+            Run(sim, 40); // the starting wind turbine covers the small demand
+            Near(Get(sim, "coal"), 100, 1e-6, "no coal burned while wind covers demand");
+            Assert(coal.Status == BuildingStatus.Idle, "coal plant on standby, is " + coal.Status);
+            sim.Construction.SetEnabled(sim.State.Buildings.First(b => b.DefId == "wind_turbine").Uid, false);
+            Run(sim, 40);
+            Assert(Get(sim, "coal") < 100 && Get(sim, "coal") > 90, "coal burned proportionally once needed: " + Get(sim, "coal"));
+            Assert(sim.State.Location("earth").EnergySatisfaction > 0.99, "coal plant covers the demand");
+        }
+
+        static void RocketReturnOverflow()
+        {
+            var sim = NewSim(32);
+            CompleteAllTechs(sim);
+            sim.Missions.UnlockLocation("moon");
+            GiveLaunch(sim, "lunar_supply", "cargo");
+            var mi = sim.Missions.Launch("lunar_supply", "cargo", "", 0);
+            Assert(mi != null, "launch");
+            mi.SuccessChance = 1;
+            Give(sim, "cargo_rocket", 100); // fill vehicle storage while in flight
+            double before = Get(sim, "cargo_rocket");
+            Run(sim, mi.Duration + 1, 5);
+            Near(Get(sim, "cargo_rocket"), before + 1, 1e-6, "returning rocket is never lost");
+        }
+
+        static void StarSystemAchievement()
+        {
+            var sim = NewSim(33);
+            var a = sim.Db.Achievements.First(x => x.Id == "four_stars");
+            Near(sim.Achievements.Progress(a), 1, 1e-9, "Sol counts as one system");
+            sim.Missions.UnlockLocation("moon");
+            Near(sim.Achievements.Progress(a), 1, 1e-9, "Moon is still Sol");
+            sim.Missions.UnlockLocation("proxima_b"); sim.Missions.UnlockLocation("proxima_d"); sim.Missions.UnlockLocation("barnard_e");
+            Near(sim.Achievements.Progress(a), 3, 1e-9, "Sol + Alpha Centauri + Barnard");
+        }
+
         // ---------------------------------------------------------------- bot playthrough
         /// <summary>
         /// A scripted player that only uses public gameplay APIs (build, research, launch,
@@ -542,12 +585,14 @@ namespace StellarIndustries.Tests
             double limit = 6 * 3600;
             double t = 0;
             var milestones = new Dictionary<string, double>();
+            int techsAtMoon = -1;
             while (t < limit)
             {
                 if (((int)t) % 5 == 0) bot.Decide();
                 sim.Tick(1); t += 1;
                 foreach (var a in sim.Db.Achievements)
                     if (sim.State.Achievements.Contains(a.Id) && !milestones.ContainsKey(a.Id)) milestones[a.Id] = t;
+                if (sim.State.IsUnlocked("moon") && techsAtMoon < 0) techsAtMoon = sim.State.Research.Completed.Count;
                 if (sim.State.Achievements.Contains("he3")) break;
             }
             LastBotReport = string.Join(", ", milestones.OrderBy(k => k.Value).Select(k => k.Key + "@" + (k.Value / 60).ToString("0") + "min"))
@@ -555,6 +600,8 @@ namespace StellarIndustries.Tests
             Assert(sim.State.Achievements.Contains("first_launch"), "bot completes the first launch. " + LastBotReport + "\n" + bot.Diagnostics());
             Assert(sim.State.IsUnlocked("moon"), "bot reaches the moon within 6h. " + LastBotReport + "\n" + bot.Diagnostics());
             Assert(sim.State.Achievements.Contains("he3"), "bot harvests helium-3 on the moon. " + LastBotReport + "\n" + bot.Diagnostics());
+            // Balance regression: research must not run out when the Moon is reached (it used to be finished entirely).
+            Assert(techsAtMoon > 0 && techsAtMoon <= sim.Db.Techs.Count - 8, "tech tree still has depth at the Moon landing: " + techsAtMoon + " of " + sim.Db.Techs.Count);
         }
 
         public static string LastBotReport = "";

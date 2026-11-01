@@ -268,39 +268,39 @@ namespace StellarIndustries.Core.Data
             var st = T("storage_logistics", "Storage Logistics", TechCategory.Logistics, 2, 30, "+50% storage at all locations.", "steelmaking");
             st.Modifiers.Add(new ModifierDef(ModifierType.StorageCapacity, 0.5)); db.Add(st);
 
-            db.Add(T("silicon_processing", "Silicon Processing", TechCategory.Electronics, 3, 60, "Grow silicon wafers.", "electronics_1", "steelmaking"));
-            var orb = T("orbital_rocketry", "Orbital Rocketry", TechCategory.Rocketry, 3, 120, "Two-stage rockets that reach orbit.", "basic_rocketry", "cryogenics", "aluminum_processing");
+            db.Add(T("silicon_processing", "Silicon Processing", TechCategory.Electronics, 3, 80, "Grow silicon wafers.", "electronics_1", "steelmaking"));
+            var orb = T("orbital_rocketry", "Orbital Rocketry", TechCategory.Rocketry, 3, 200, "Two-stage rockets that reach orbit.", "basic_rocketry", "cryogenics", "aluminum_processing");
             orb.MaterialCost = R("aluminum_sheet", 10); db.Add(orb);
-            var off = T("offline_operations", "Offline Operations", TechCategory.Automation, 3, 80, "Facilities keep working while you are away: +25% offline efficiency, +4h offline cap.", "automation_1");
+            var off = T("offline_operations", "Offline Operations", TechCategory.Automation, 3, 150, "Facilities keep working while you are away: +25% offline efficiency, +4h offline cap.", "automation_1");
             off.Modifiers.Add(new ModifierDef(ModifierType.OfflineEfficiency, 0.25)); off.Modifiers.Add(new ModifierDef(ModifierType.OfflineCapHours, 4)); db.Add(off);
 
-            db.Add(T("photovoltaics", "Photovoltaics", TechCategory.Energy, 4, 100, "Solar arrays.", "silicon_processing"));
-            var e2 = T("electronics_2", "Electronics II", TechCategory.Electronics, 4, 150, "Semiconductor research: +25% research speed.", "silicon_processing");
+            db.Add(T("photovoltaics", "Photovoltaics", TechCategory.Energy, 4, 300, "Solar arrays.", "silicon_processing"));
+            var e2 = T("electronics_2", "Electronics II", TechCategory.Electronics, 4, 400, "Semiconductor research: +25% research speed.", "silicon_processing");
             e2.Modifiers.Add(new ModifierDef(ModifierType.ResearchSpeed, 0.25)); db.Add(e2);
-            var la = T("launch_automation", "Launch Automation", TechCategory.Automation, 4, 200, "Automatic recurring launches and transport routes. +10% mission speed.", "orbital_rocketry", "automation_1");
+            var la = T("launch_automation", "Launch Automation", TechCategory.Automation, 4, 600, "Automatic recurring launches and transport routes. +10% mission speed.", "orbital_rocketry", "automation_1");
             la.UnlockFeatures = L(Features.LaunchAutomation, Features.Logistics); la.Modifiers.Add(new ModifierDef(ModifierType.MissionSpeed, 0.1)); db.Add(la);
-            var dm = T("deep_mining", "Deep Mining", TechCategory.Mining, 4, 150, "Deep shafts: +40% extraction speed.", "advanced_mining", "steelmaking");
+            var dm = T("deep_mining", "Deep Mining", TechCategory.Mining, 4, 500, "Deep shafts: +40% extraction speed.", "advanced_mining", "steelmaking");
             dm.Modifiers.Add(new ModifierDef(ModifierType.ExtractionSpeed, 0.4)); db.Add(dm);
 
-            var ln = T("lunar_navigation", "Lunar Navigation", TechCategory.Rocketry, 5, 300, "Landing systems and lunar rockets. +5% rocket reliability.", "orbital_rocketry", "electronics_2");
+            var ln = T("lunar_navigation", "Lunar Navigation", TechCategory.Rocketry, 5, 1500, "Landing systems and lunar rockets. +5% rocket reliability.", "orbital_rocketry", "electronics_2");
             ln.Modifiers.Add(new ModifierDef(ModifierType.RocketReliability, 0.05)); ln.MaterialCost = R("guidance_computer", 2); db.Add(ln);
-            var ar = T("automated_research", "Automated Research", TechCategory.ArtificialIntelligence, 5, 250, "Labs automatically pick the next research project.", "electronics_2");
+            var ar = T("automated_research", "Automated Research", TechCategory.ArtificialIntelligence, 5, 1200, "Labs automatically pick the next research project.", "electronics_2");
             ar.UnlockFeatures = L(Features.AutoResearch); ar.Modifiers.Add(new ModifierDef(ModifierType.ResearchSpeed, 0.15)); db.Add(ar);
 
-            db.Add(T("lunar_industry", "Lunar Industry", TechCategory.PlanetaryEngineering, 6, 400, "Ice extraction, regolith processing, helium-3 and titanium mining.", "lunar_navigation"));
-            var hl = T("heavy_lift", "Heavy Lift", TechCategory.Rocketry, 6, 600, "Reusable heavy cargo rockets.", "lunar_navigation", "launch_automation");
+            db.Add(T("lunar_industry", "Lunar Industry", TechCategory.PlanetaryEngineering, 6, 3000, "Ice extraction, regolith processing, helium-3 and titanium mining.", "lunar_navigation"));
+            var hl = T("heavy_lift", "Heavy Lift", TechCategory.Rocketry, 6, 6000, "Reusable heavy cargo rockets.", "lunar_navigation", "launch_automation");
             hl.MaterialCost = R("steel", 50); db.Add(hl);
 
-            db.Add(T("titanium_metallurgy", "Titanium Metallurgy", TechCategory.Metallurgy, 7, 700, "Titanium alloys and the lunar shuttle.", "lunar_industry"));
-            var fu = T("fusion_power", "Helium-3 Fusion", TechCategory.Fusion, 7, 3000, "Fusion reactors burning lunar helium-3. +20% energy output.", "lunar_industry", "photovoltaics");
+            db.Add(T("titanium_metallurgy", "Titanium Metallurgy", TechCategory.Metallurgy, 7, 9000, "Titanium alloys and the lunar shuttle.", "lunar_industry"));
+            var fu = T("fusion_power", "Helium-3 Fusion", TechCategory.Fusion, 7, 15000, "Fusion reactors burning lunar helium-3. +20% energy output.", "lunar_industry", "photovoltaics");
             fu.Modifiers.Add(new ModifierDef(ModifierType.EnergyOutput, 0.2)); fu.MaterialCost = R("helium3", 20); db.Add(fu);
 
-            var ip = T("interplanetary_navigation", "Interplanetary Navigation", TechCategory.Propulsion, 8, 6000, "Transfer orbits to Mars. +20% mission speed.", "heavy_lift", "titanium_metallurgy");
+            var ip = T("interplanetary_navigation", "Interplanetary Navigation", TechCategory.Propulsion, 8, 30000, "Transfer orbits to Mars. +20% mission speed.", "heavy_lift", "titanium_metallurgy");
             ip.Modifiers.Add(new ModifierDef(ModifierType.MissionSpeed, 0.2)); db.Add(ip);
-            var a2 = T("automation_2", "Automation II", TechCategory.Robotics, 8, 2500, "Robotic factories: +50% production, +15% offline efficiency.", "launch_automation", "automated_research");
+            var a2 = T("automation_2", "Automation II", TechCategory.Robotics, 8, 20000, "Robotic factories: +50% production, +15% offline efficiency.", "launch_automation", "automated_research");
             a2.Modifiers.Add(new ModifierDef(ModifierType.ProductionSpeed, 0.5)); a2.Modifiers.Add(new ModifierDef(ModifierType.OfflineEfficiency, 0.15)); db.Add(a2);
 
-            var mi = T("mars_industry", "Martian Industry", TechCategory.PlanetaryEngineering, 9, 8000, "Atmospheric processing and oxygen from CO2. +20% extraction.", "interplanetary_navigation");
+            var mi = T("mars_industry", "Martian Industry", TechCategory.PlanetaryEngineering, 9, 50000, "Atmospheric processing and oxygen from CO2. +20% extraction.", "interplanetary_navigation");
             mi.Modifiers.Add(new ModifierDef(ModifierType.ExtractionSpeed, 0.2)); db.Add(mi);
         }
 
@@ -342,6 +342,8 @@ namespace StellarIndustries.Core.Data
             db.Add(new LocationDef { Id = "earth", Name = "Earth", BodyType = BodyType.Planet, Gravity = 1, Atmosphere = "Nitrogen / Oxygen", TemperatureC = 15,
                 SolarMultiplier = 1, HasWind = true, StartUnlocked = true, ColorHex = "#2E86DE", OrbitRadius = 30, VisualRadius = 1.0, OrbitPeriod = 600,
                 RadiusKm = 6371.0, EscapeVelocityKms = 11.19, DayLengthHours = 24.0, DistanceAU = 1.0, IrradianceWm2 = 1361.0, SurfaceTransmission = 0.75,
+                SurfaceTexture = "earth_day", NightTexture = "earth_night", CloudTexture = "earth_clouds", AtmosphereColorHex = "#6FB7FF", AtmosphereThickness = 1,
+                AxialTiltDeg = 23.44, RotationPeriodHours = 23.9345,
                 Description = "Home. Abundant resources, a breathable atmosphere and deep gravity well.",
                 Deposits = new List<DepositDef> { new DepositDef("iron_ore", 1), new DepositDef("copper_ore", 1), new DepositDef("bauxite", 0.8), new DepositDef("quartz_sand", 1),
                     new DepositDef("coal", 1), new DepositDef("crude_oil", 1), new DepositDef("water", 1.5) },
@@ -349,6 +351,7 @@ namespace StellarIndustries.Core.Data
             db.Add(new LocationDef { Id = "moon", Name = "Moon", BodyType = BodyType.Moon, ParentId = "earth", Gravity = 0.165, Atmosphere = "None (vacuum)", TemperatureC = -20,
                 SolarMultiplier = 1.4, ColorHex = "#BDBDBD", OrbitRadius = 3.5, VisualRadius = 0.35, OrbitPeriod = 90,
                 RadiusKm = 1737.4, EscapeVelocityKms = 2.38, DayLengthHours = 708.7, DistanceAU = 1.0, IrradianceWm2 = 1361.0, SurfaceTransmission = 1.0,
+                SurfaceTexture = "moon", AxialTiltDeg = 6.68, RotationPeriodHours = 655.72,
                 Description = "Low gravity makes it the perfect shipyard. Regolith, titanium, ice and helium-3.",
                 Deposits = new List<DepositDef> { new DepositDef("regolith", 1.5), new DepositDef("iron_ore", 0.6), new DepositDef("titanium_ore", 0.8),
                     new DepositDef("helium3", 0.5), new DepositDef("water_ice", 0.6), new DepositDef("rare_earths", 0.4) },
@@ -356,6 +359,7 @@ namespace StellarIndustries.Core.Data
             db.Add(new LocationDef { Id = "mars", Name = "Mars", BodyType = BodyType.Planet, Gravity = 0.38, Atmosphere = "Thin CO2 (~6 mbar)", TemperatureC = -65,
                 SolarMultiplier = 0.45, ColorHex = "#C0392B", OrbitRadius = 46, VisualRadius = 0.55, OrbitPeriod = 1100,
                 RadiusKm = 3389.5, EscapeVelocityKms = 5.03, DayLengthHours = 24.66, DistanceAU = 1.524, IrradianceWm2 = 586.2, SurfaceTransmission = 0.85,
+                SurfaceTexture = "mars", AtmosphereColorHex = "#E8A47E", AtmosphereThickness = 0.35, AxialTiltDeg = 25.19, RotationPeriodHours = 24.6229,
                 Description = "Iron-rich soil, polar ice and a CO2 atmosphere waiting to be processed.",
                 Deposits = new List<DepositDef> { new DepositDef("iron_ore", 1.3), new DepositDef("quartz_sand", 1), new DepositDef("water_ice", 0.9),
                     new DepositDef("co2", 2), new DepositDef("rare_earths", 0.6), new DepositDef("regolith", 1) },

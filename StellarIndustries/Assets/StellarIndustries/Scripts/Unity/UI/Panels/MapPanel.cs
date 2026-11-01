@@ -46,7 +46,7 @@ namespace StellarIndustries.Unity.UI.Panels
                 { UI.SelectBody("sys:" + s.Id); Gx.Changed(); }
                 if (!sel) continue;
                 GUILayout.Label(s.Description, Theme.Wrap);
-                GUILayout.Label($"Luminosity {s.LuminositySun:0.#####} L☉ · light needs {s.DistanceLy:0.#} years to reach us", Theme.DimLabel);
+                GUILayout.Label($"Luminosity {s.LuminositySun:0.#####} x Sun · light needs {s.DistanceLy:0.#} years to reach us", Theme.DimLabel);
                 if (!string.IsNullOrEmpty(s.Notes)) GUILayout.Label(Gx.Colored("Status: ", Theme.Orange) + s.Notes, Theme.DimLabel);
                 var survey = Sim.Db.Missions.FirstOrDefault(m => m.Id == "survey_" + s.Id);
                 if (survey != null)
@@ -60,7 +60,7 @@ namespace StellarIndustries.Unity.UI.Panels
         void DrawBody(LocationDef def)
         {
             bool unlocked = Sim.State.IsUnlocked(def.Id);
-            GUILayout.BeginVertical(Theme.Box);
+            GUILayout.BeginVertical(Theme.Card);
             GUILayout.Label(Gx.Colored(def.Name, unlocked ? Theme.Cyan : Theme.Dim) + Gx.Colored("  " + def.BodyType + (string.IsNullOrEmpty(def.ParentId) ? "" : " of " + Sim.Db.Location(def.ParentId)?.Name), Theme.Dim), Theme.Label);
             if (!string.IsNullOrEmpty(def.Status)) GUILayout.Label(def.Status, Theme.Small);
             if (unlocked)

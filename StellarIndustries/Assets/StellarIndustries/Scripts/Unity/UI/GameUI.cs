@@ -37,7 +37,8 @@ namespace StellarIndustries.Unity.UI
         Vector2 modalScroll;
         bool dragging; Vector2 dragStart;
         readonly List<SpaceView.Label> labels = new List<SpaceView.Label>();
-        const float TopH = 52, NavW = 150, Gap = 8;
+        const float TopH = 62, NavW = 176, Gap = 10;
+        bool locationMenuOpen;
 
         public void Init(GameController gc, SpaceView view)
         {
@@ -80,7 +81,7 @@ namespace StellarIndustries.Unity.UI
 
             if (Sim == null)
             {
-                View.ViewportLeft = 0;
+                View.ViewportLeft = Mathf.Min(0.42f, (Mathf.Min(560, VW * 0.4f) + 30) / VW);
                 menu.Draw(new Rect(0, 0, VW, VH));
                 DrawConfirm();
                 DrawTooltip();
@@ -106,6 +107,7 @@ namespace StellarIndustries.Unity.UI
             DrawMapLabels();
             DrawToasts();
             HandleViewInput();
+            DrawLocationMenu();
             DrawOfflineReport();
             DrawWarnings();
             DrawConfirm();
@@ -124,69 +126,97 @@ namespace StellarIndustries.Unity.UI
         void DrawTopBar()
         {
             var r = new Rect(0, 0, VW, TopH);
-            Gx.Fill(r, new Color(0.02f, 0.04f, 0.08f, 0.94f));
-            Gx.Fill(new Rect(0, TopH - 1, VW, 1), Theme.Border);
-            GUI.Label(new Rect(14, 6, 260, 22), "STELLAR INDUSTRIES", Theme.Title);
-            GUI.Label(new Rect(14, 27, 260, 18), Sim.State.SaveName + "  ·  " + NumberFormat.Duration(Sim.State.PlayTime), Theme.DimLabel);
+            GUI.Box(r, GUIContent.none, Theme.Glass);
+            Gx.Fill(new Rect(0, TopH - 2, VW * 0.35f, 2), Theme.Cyan * new Color(1, 1, 1, 0.7f));
+            Gx.Fill(new Rect(VW * 0.35f, TopH - 1, VW * 0.65f, 1), Theme.Border);
+            GUI.Label(new Rect(18, 6, 300, 30), "STELLAR <color=#FF963C>INDUSTRIES</color>", Theme.Title);
+            GUI.Label(new Rect(19, 35, 300, 20), Sim.State.SaveName + "  ·  " + NumberFormat.Duration(Sim.State.PlayTime), Theme.DimLabel);
 
-            float x = 270;
-            foreach (var id in Sim.State.UnlockedLocations)
-            {
-                var def = Sim.Db.Location(id);
-                bool cur = Sim.State.CurrentLocation == id;
-                if (GUI.Button(new Rect(x, 10, 92, 32), def.Name, cur ? Theme.NavActive : Theme.Nav)) { Sim.State.CurrentLocation = id; Gx.Changed(); }
-                x += 96;
-            }
-            x += 12;
+            // Location selector (dropdown - scales to any number of worlds)
+            float x = 300;
+            var cur = Sim.Db.Location(Sim.State.CurrentLocation);
+            var sys = cur.StarSystem != "sol" ? Sim.Db.StarSystem(cur.StarSystem)?.Name + " · " : "";
+            // Two lines (name / system + world count) so long star-system names never wrap or overflow.
+            var selRect = new Rect(x, 9, 210, 44);
+            if (GUI.Button(selRect, new GUIContent("", "Switch location"), Theme.NavActive)) { locationMenuOpen = !locationMenuOpen; Gx.Changed(); }
+            GUI.Label(new Rect(x + 14, 10, 160, 24), "<b>" + cur.Name + "</b>", Theme.Label);
+            GUI.Label(new Rect(x + 14, 30, 180, 18), "<color=#8498B0>" + (sys.Length > 0 ? sys : "Sol · ") + Sim.State.UnlockedLocations.Count + " worlds</color>", Theme.Small);
+            GUI.Label(new Rect(selRect.xMax - 26, 18, 20, 22), locationMenuOpen ? "^" : "v", Theme.Label);
+            x += 226;
+
             var loc = Sim.State.Location(Sim.State.CurrentLocation);
             double sup = loc?.EnergySupply ?? 0, dem = loc?.EnergyDemand ?? 0;
             Color ec = dem <= sup + 1e-6 ? Theme.Good : (loc.EnergySatisfaction > 0.5 ? Theme.Warn : Theme.Bad);
-            GUI.Label(new Rect(x, 8, 170, 18), "ENERGY", Theme.DimLabel);
-            GUI.Label(new Rect(x, 24, 170, 20), Gx.Colored(NumberFormat.Short(sup) + " / " + NumberFormat.Short(dem) + " MW", ec), Theme.Label);
-            x += 150;
-            GUI.Label(new Rect(x, 8, 170, 18), "SCIENCE", Theme.DimLabel);
+            x = Stat(x, 150, "ENERGY", Gx.Colored(NumberFormat.Short(sup) + " / " + NumberFormat.Short(dem) + " MW", ec));
             double sciRate = 0;
             foreach (var l in Sim.State.Locations.Values) if (l.Rates != null && l.Rates.TryGetValue(ResearchSystem.ScienceId, out var sr)) sciRate += sr;
-            GUI.Label(new Rect(x, 24, 170, 20), Gx.Colored(NumberFormat.Short(Sim.Inventory.Get("earth", ResearchSystem.ScienceId)), Theme.Cyan) + "  " + Gx.Colored(NumberFormat.Rate(sciRate), Theme.Dim), Theme.Label);
-            x += 150;
+            x = Stat(x, 150, "SCIENCE", Gx.Colored(NumberFormat.Short(Sim.Inventory.Get("earth", ResearchSystem.ScienceId)), Theme.Cyan) + "  " + Gx.Colored(NumberFormat.Rate(sciRate), Theme.Dim));
             var active = Sim.Db.Tech(Sim.State.Research.ActiveTech);
-            GUI.Label(new Rect(x, 8, 220, 18), "RESEARCH", Theme.DimLabel);
-            if (active != null) Gx.Bar(new Rect(x, 27, 190, 15), (float)Sim.Research.Fraction, new Color(0.17f, 0.85f, 1f, 0.75f), active.Name);
+            GUI.Label(new Rect(x, 9, 220, 16), "RESEARCH", Theme.DimLabel);
+            if (active != null) Gx.Bar(new Rect(x, 30, 210, 18), (float)Sim.Research.Fraction, new Color(0.25f, 0.8f, 1f, 0.9f), active.Name);
             else
             {
                 // Explain *why* research is idle: usually a material cost that is not available on Earth yet.
                 var waiting = Sim.State.Research.Queue.Select(q => Sim.Db.Tech(q)).FirstOrDefault(t => t != null);
                 string why = waiting != null ? Sim.Inventory.MissingText(Sim.Db.Start.StartLocation, waiting.MaterialCost) : "Open the Research tree";
-                GUI.Label(new Rect(x, 24, 200, 20), new GUIContent(Gx.Colored(waiting != null ? "waiting" : "idle", Theme.Warn), (waiting != null ? waiting.Name + " - " : "") + why), Theme.Label);
+                GUI.Label(new Rect(x, 27, 210, 22), new GUIContent(Gx.Colored(waiting != null ? "waiting for materials" : "idle - choose a project", Theme.Warn), (waiting != null ? waiting.Name + " - " : "") + why), Theme.Label);
             }
-            x += 205;
-            if (x + 120 < VW)
+            x += 228;
+            if (x + 120 < VW - 90) Stat(x, 120, "MISSIONS", Sim.State.ActiveMissions.Count + " in flight");
+            if (GUI.Button(new Rect(VW - 86, 14, 72, 34), new GUIContent("Save", "Save now (F5)"), Theme.Button)) { GC.Save(); Notify("Game saved", NotificationLevel.Success); }
+        }
+
+        float Stat(float x, float w, string label, string value)
+        {
+            GUI.Label(new Rect(x, 9, w, 16), label, Theme.DimLabel);
+            GUI.Label(new Rect(x, 26, w, 24), value, Theme.Label);
+            return x + w + 10;
+        }
+
+        void DrawLocationMenu()
+        {
+            if (!locationMenuOpen) return;
+            var ids = Sim.State.UnlockedLocations;
+            var r = new Rect(300, TopH - 4, 260, 18 + ids.Count * 38);
+            GUI.Box(r, GUIContent.none, Theme.Box);
+            float y = r.y + 10;
+            string lastSys = null;
+            foreach (var id in ids)
             {
-                GUI.Label(new Rect(x, 8, 120, 18), "MISSIONS", Theme.DimLabel);
-                GUI.Label(new Rect(x, 24, 120, 20), Sim.State.ActiveMissions.Count + " in flight", Theme.Label);
+                var def = Sim.Db.Location(id);
+                if (def.StarSystem != lastSys) { lastSys = def.StarSystem; }
+                bool cur = Sim.State.CurrentLocation == id;
+                var label = def.Name + "  <size=11><color=#8498B0>" + (Sim.Db.StarSystem(def.StarSystem)?.Name ?? "") + " · " + Sim.State.Buildings.Count(b => b.LocationId == id) + " facilities</color></size>";
+                if (GUI.Button(new Rect(r.x + 8, y, r.width - 16, 34), label, cur ? Theme.NavActive : Theme.Nav))
+                { Sim.State.CurrentLocation = id; locationMenuOpen = false; Gx.Changed(); }
+                y += 38;
             }
-            if (GUI.Button(new Rect(VW - 74, 12, 62, 28), new GUIContent("Save", "Save now (F5)"), Theme.Button)) { GC.Save(); Notify("Game saved", NotificationLevel.Success); }
+            var e = Event.current;
+            if (e.type == EventType.MouseDown && !r.Contains(e.mousePosition) && !new Rect(300, 11, 210, 40).Contains(e.mousePosition))
+            { locationMenuOpen = false; e.Use(); }
         }
 
         void DrawNav()
         {
             var r = new Rect(Gap, TopH + Gap, NavW, VH - TopH - Gap * 2);
             GUI.Box(r, GUIContent.none, Theme.Box);
-            float y = r.y + 10;
+            float y = r.y + 12;
             for (int i = 0; i < panels.Length; i++)
             {
                 var p = panels[i];
                 bool unlocked = p.IsUnlocked;
                 string key = i == 9 ? "0" : (i + 1).ToString();
-                var content = new GUIContent((unlocked ? "" : "[locked] ") + p.Title, unlocked ? "Hotkey " + key : p.LockedHint);
+                var br = new Rect(r.x + 8, y, NavW - 16, 38);
+                var content = new GUIContent((unlocked ? "" : "<color=#56657A>") + p.Title + (unlocked ? "" : "</color>"), unlocked ? "Hotkey " + key : p.LockedHint);
                 bool old = GUI.enabled; GUI.enabled = unlocked;
-                if (GUI.Button(new Rect(r.x + 8, y, NavW - 16, 34), content, i == Active ? Theme.NavActive : Theme.Nav)) { Active = i; Gx.Changed(); }
+                if (GUI.Button(br, content, i == Active ? Theme.NavActive : Theme.Nav)) { Active = i; Gx.Changed(); }
                 GUI.enabled = old;
-                if (!unlocked && Event.current.type == EventType.Repaint && new Rect(r.x + 8, y, NavW - 16, 34).Contains(Event.current.mousePosition))
-                    GUI.tooltip = p.LockedHint;
-                y += 38;
+                if (i == Active) Gx.RoundFill(new Rect(br.x + 4, br.y + 9, 4, br.height - 18), Theme.Cyan);
+                if (!unlocked) GUI.Label(new Rect(br.xMax - 46, br.y + 10, 40, 18), "<size=10><color=#56657A>LOCKED</color></size>", Theme.Small);
+                if (!unlocked && Event.current.type == EventType.Repaint && br.Contains(Event.current.mousePosition)) GUI.tooltip = p.LockedHint;
+                y += 42;
             }
-            GUI.Label(new Rect(r.x + 10, r.yMax - 40, NavW - 20, 36), "Drag: rotate view\nWheel: zoom", Theme.DimLabel);
+            GUI.Label(new Rect(r.x + 14, r.yMax - 44, NavW - 24, 40), "Drag: rotate view\nWheel: zoom · F5: save", Theme.DimLabel);
         }
 
         void DrawObjective()
@@ -194,30 +224,34 @@ namespace StellarIndustries.Unity.UI
             if (!Sim.State.Settings.ShowHints) return;
             var obj = Sim.Achievements.CurrentObjective;
             if (obj == null) return;
-            float w = 300, h = 66;
+            float w = 330, h = 84;
             var r = new Rect(VW - w - Gap, VH - h - Gap, w, h);
             GUI.Box(r, GUIContent.none, Theme.Box);
-            GUI.Label(new Rect(r.x + 10, r.y + 6, w - 20, 18), "OBJECTIVE", Theme.DimLabel);
-            GUI.Label(new Rect(r.x + 10, r.y + 20, w - 20, 20), Gx.Colored(obj.Name, Theme.Orange) + "  " + obj.Description, Theme.Small);
+            Gx.RoundFill(new Rect(r.x + 6, r.y + 12, 4, h - 24), Theme.Orange);
+            GUI.Label(new Rect(r.x + 18, r.y + 7, w - 30, 18), "CURRENT OBJECTIVE", Theme.DimLabel);
+            GUI.Label(new Rect(r.x + 18, r.y + 24, w - 30, 22), Gx.Colored(obj.Name, Theme.Orange) + "  <size=12>" + obj.Description + "</size>", Theme.Label);
             double p = Sim.Achievements.Progress(obj);
-            Gx.Bar(new Rect(r.x + 10, r.y + 44, w - 20, 12), (float)(p / Math.Max(1e-9, obj.Threshold)), Theme.Orange, NumberFormat.Short(Math.Min(p, obj.Threshold)) + " / " + NumberFormat.Short(obj.Threshold));
+            float pulse = 0.85f + 0.15f * Mathf.Sin(Time.unscaledTime * 3f);
+            Gx.Bar(new Rect(r.x + 18, r.y + 54, w - 34, 16), (float)(p / Math.Max(1e-9, obj.Threshold)), Theme.Orange * new Color(pulse, pulse, pulse, 1),
+                NumberFormat.Short(Math.Min(p, obj.Threshold)) + " / " + NumberFormat.Short(obj.Threshold));
         }
 
         void DrawToasts()
         {
-            float y = TopH + Gap, w = 320;
+            float y = TopH + Gap, w = 340;
             for (int i = toasts.Count - 1; i >= 0; i--) if (Time.unscaledTime - toasts[i].Time > 7f) toasts.RemoveAt(i);
             foreach (var t in toasts)
             {
                 float age = Time.unscaledTime - t.Time;
                 float a = Mathf.Clamp01(Mathf.Min(age * 4, (7f - age) * 1.5f));
-                var r = new Rect(VW - w - Gap, y, w, 40);
+                float slide = (1 - Mathf.Clamp01(age * 5)) * 40;
+                var r = new Rect(VW - w - Gap + slide, y, w, 46);
                 var old = GUI.color; GUI.color = new Color(1, 1, 1, a);
                 GUI.Box(r, GUIContent.none, Theme.Box);
-                Gx.Fill(new Rect(r.x, r.y, 3, r.height), Gx.LevelColor(t.Level));
-                GUI.Label(new Rect(r.x + 10, r.y + 4, w - 16, 34), t.Text, Theme.Wrap);
+                Gx.RoundFill(new Rect(r.x + 6, r.y + 10, 4, r.height - 20), Gx.LevelColor(t.Level));
+                GUI.Label(new Rect(r.x + 18, r.y + 4, w - 26, 40), t.Text, Theme.Wrap);
                 GUI.color = old;
-                y += 44;
+                y += 52;
             }
         }
 
@@ -237,8 +271,9 @@ namespace StellarIndustries.Unity.UI
         bool OverUi(Vector2 p)
         {
             if (p.y < TopH || p.x < PanelRect.xMax + Gap) return true;
-            if (p.x > VW - 330 && p.y < TopH + Gap + toasts.Count * 44) return true;
-            return Sim.State.Settings.ShowHints && p.x > VW - 310 && p.y > VH - 80;
+            if (locationMenuOpen && p.x < 570 && p.y < TopH + 20 + Sim.State.UnlockedLocations.Count * 38) return true;
+            if (p.x > VW - 360 && p.y < TopH + Gap + toasts.Count * 52) return true;
+            return Sim.State.Settings.ShowHints && p.x > VW - 345 && p.y > VH - 100;
         }
 
         void HandleViewInput()
@@ -282,11 +317,12 @@ namespace StellarIndustries.Unity.UI
         {
             var rep = GC.PendingOfflineReport;
             if (rep == null) return;
-            var r = new Rect(VW / 2 - 260, VH / 2 - 220, 520, 440);
+            var r = new Rect(VW / 2 - 290, VH / 2 - 240, 580, 480);
             GUI.ModalWindow(9001, r, id =>
             {
-                GUILayout.Space(8);
+                GUILayout.Space(14);
                 GUILayout.Label("Welcome back, Director", Theme.Title);
+                Gx.HLine();
                 if (rep.ClockAnomaly) GUILayout.Label(Gx.Colored("The system clock moved backwards. No offline progress was granted.", Theme.Warn), Theme.Wrap);
                 GUILayout.Label($"Away for {NumberFormat.Duration(rep.RequestedSeconds)}. Simulated {NumberFormat.Duration(rep.SimulatedSeconds)} at {NumberFormat.Percent(rep.Efficiency)} efficiency" +
                                 (rep.RequestedSeconds > rep.SimulatedSeconds + 1 ? " (offline cap reached - research Offline Operations to extend it)." : "."), Theme.Wrap);

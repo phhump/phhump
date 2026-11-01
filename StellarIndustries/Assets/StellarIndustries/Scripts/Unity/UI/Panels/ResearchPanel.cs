@@ -10,7 +10,7 @@ namespace StellarIndustries.Unity.UI.Panels
     /// <summary>Interactive technology tree: columns = tiers, lines = prerequisites, colors = status.</summary>
     public class ResearchPanel : Panel
     {
-        const float NodeW = 170, NodeH = 56, ColW = 205, RowH = 66;
+        const float NodeW = 184, NodeH = 60, ColW = 220, RowH = 70;
         readonly Dictionary<string, Rect> layout = new Dictionary<string, Rect>();
         Vector2 contentSize;
         string selected;
@@ -49,9 +49,13 @@ namespace StellarIndustries.Unity.UI.Panels
             if (layout.Count != Sim.Db.Techs.Count) BuildLayout();
             float detailH = 170;
             GUI.Label(new Rect(r.x, r.y, r.width, 24), "Technology Tree", Theme.Title);
-            GUI.Label(new Rect(r.x + 180, r.y + 4, r.width - 180, 20),
-                Gx.Colored("■ Completed  ", StatusColor(TechStatus.Completed) * 1.6f) + Gx.Colored("■ Researching  ", Theme.Cyan) + Gx.Colored("■ Queued  ", new Color(0.6f, 0.6f, 1f)) +
-                Gx.Colored("■ Available  ", Theme.Orange) + Gx.Colored("■ Locked", Theme.Dim), Theme.Small);
+            float lx = r.x + 230;
+            foreach (var (name, st) in new[] { ("Completed", TechStatus.Completed), ("Researching", TechStatus.Researching), ("Queued", TechStatus.Queued), ("Available", TechStatus.Available), ("Locked", TechStatus.Locked) })
+            {
+                Gx.RoundFill(new Rect(lx, r.y + 9, 12, 12), StatusColor(st) * 1.5f);
+                GUI.Label(new Rect(lx + 16, r.y + 4, 100, 20), name, Theme.Small);
+                lx += 104;
+            }
             var view = new Rect(r.x, r.y + 28, r.width, r.height - detailH - 34);
             Scroll = GUI.BeginScrollView(view, Scroll, new Rect(0, 0, contentSize.x, contentSize.y));
 
@@ -74,8 +78,8 @@ namespace StellarIndustries.Unity.UI.Panels
                 var status = Sim.Research.Status(t.Id);
                 var old = GUI.backgroundColor;
                 GUI.backgroundColor = StatusColor(status) * 2.2f;
-                string label = Gx.Colored(t.Name, status == TechStatus.Locked ? Theme.Dim : Color.white) + "\n" +
-                               Gx.Colored(t.Category + " · " + NumberFormat.Short(t.ScienceCost) + " sci", Theme.Dim);
+                string label = "<b>" + Gx.Colored(t.Name, status == TechStatus.Locked ? Theme.Dim : Color.white) + "</b>\n<size=11>" +
+                               Gx.Colored(t.Category + " · " + NumberFormat.Short(t.ScienceCost) + " sci", status == TechStatus.Locked ? Theme.Dim : new Color(0.85f, 0.92f, 1f, 0.8f)) + "</size>";
                 if (GUI.Button(rect, new GUIContent(label, t.Description), Theme.Node)) { selected = t.Id; Gx.Changed(); }
                 GUI.backgroundColor = old;
                 if (selected == t.Id) { Gx.Fill(new Rect(rect.x, rect.y, rect.width, 2), Theme.Orange); Gx.Fill(new Rect(rect.x, rect.yMax - 2, rect.width, 2), Theme.Orange); }

@@ -74,12 +74,12 @@ namespace StellarIndustries.Core.Systems
         public double FreeSpace(string locationId, string resourceId) => Math.Max(0, Capacity(locationId, resourceId) - Get(locationId, resourceId));
 
         /// <summary>Adds up to the storage limit. Returns the amount actually added.</summary>
-        public double Add(string locationId, string resourceId, double amount, bool countAsProduced = true)
+        public double Add(string locationId, string resourceId, double amount, bool countAsProduced = true, bool ignoreCapacity = false)
         {
             if (amount <= 0) return 0;
             var s = Store(locationId, resourceId);
             if (s == null || db.Resource(resourceId) == null) return 0;
-            double added = Math.Min(amount, FreeSpace(locationId, resourceId));
+            double added = ignoreCapacity ? amount : Math.Min(amount, FreeSpace(locationId, resourceId));
             if (added <= 0) return 0;
             s.TryGetValue(resourceId, out var cur);
             s[resourceId] = cur + added;

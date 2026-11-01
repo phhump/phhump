@@ -1,96 +1,137 @@
 <!doctype html><html><head><meta charset="utf-8"><style>
-:root{--bg:#070b14;--panel:rgba(12,20,34,.93);--pl:#162236;--b:rgba(43,217,254,.35);--cy:#2bd9fe;--or:#ff8c2a;--tx:#d8e6f3;--dim:#7f93a8;--good:#3ddc84;--warn:#ffb020;--bad:#ff5a5a}
-*{box-sizing:border-box}body{margin:0;width:1600px;height:900px;background:#03050b;color:var(--tx);font:13px "DejaVu Sans",Arial,sans-serif;overflow:hidden;position:relative}
+@font-face{font-family:Disp;src:url(/Assets/StellarIndustries/Resources/Fonts/Rajdhani-SemiBold.ttf)}
+@font-face{font-family:DispB;src:url(/Assets/StellarIndustries/Resources/Fonts/Rajdhani-Bold.ttf)}
+@font-face{font-family:Body;src:url(/Assets/StellarIndustries/Resources/Fonts/TitilliumWeb-Regular.ttf)}
+@font-face{font-family:BodyB;src:url(/Assets/StellarIndustries/Resources/Fonts/TitilliumWeb-SemiBold.ttf)}
+:root{--cy:#40e0ff;--or:#ff963c;--tx:#dee9f5;--dim:#8498b0;--good:#46e296;--warn:#ffba3c;--bad:#ff6060}
+*{box-sizing:border-box}body{margin:0;width:1600px;height:900px;background:#04070e;color:var(--tx);font:14px Body,sans-serif;overflow:hidden;position:relative}
 canvas#sky{position:absolute;inset:0}
-.top{position:absolute;left:0;top:0;right:0;height:52px;background:rgba(5,10,20,.94);border-bottom:1px solid var(--b);display:flex;align-items:center;padding:0 14px;gap:18px}
-.logo b{color:var(--cy);font-size:17px;display:block}.logo span{color:var(--dim);font-size:11px}
-.loc{padding:7px 16px;border:1px solid rgba(43,217,254,.2);background:#0a1020}.loc.on{background:#123c55;border-color:var(--cy)}
-.stat small{display:block;color:var(--dim);font-size:11px}.bar{height:14px;background:rgba(0,0,0,.45);position:relative;font-size:10px;text-align:center;line-height:14px}.bar i{position:absolute;left:0;top:0;bottom:0}.bar em{position:relative;font-style:normal}
-.nav{position:absolute;left:8px;top:60px;width:150px;bottom:8px;background:var(--panel);border:1px solid var(--b);padding:10px 8px}
-.nav div{height:34px;margin-bottom:4px;padding:8px 12px;font-size:14px;background:rgba(10,16,28,.86);border:1px solid rgba(43,217,254,.16)}.nav div.on{background:#123c55;border-color:var(--cy);color:#fff}.nav div.lock{color:#4d5c6d}
-.panel{position:absolute;left:166px;top:60px;bottom:8px;background:var(--panel);border:1px solid var(--b);padding:10px 12px;overflow:hidden}
-h1{color:var(--cy);font-size:17px;margin:0 0 2px}.dim{color:var(--dim);font-size:11px}.hr{height:1px;background:var(--b);margin:5px 0}
-h3{color:var(--or);font-size:13px;margin:8px 0 3px}
-.tabs span{display:inline-block;width:130px;padding:6px 10px;margin-right:4px;background:#0a1020;border:1px solid rgba(43,217,254,.2)}.tabs span.on{background:#123c55;border-color:var(--cy)}
-.row{display:flex;align-items:center;gap:6px;height:24px;font-size:12.5px}
-.btn{padding:2px 7px;background:var(--pl);border:1px solid var(--b);font-size:11.5px;white-space:nowrap}.btn.acc{background:#783c0a;border-color:var(--or);color:#fff}
-.toast{position:absolute;right:8px;width:320px;background:var(--panel);border:1px solid var(--b);padding:7px 10px 7px 13px;font-size:12.5px}.toast:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--good)}
-.obj{position:absolute;right:8px;bottom:8px;width:300px;background:var(--panel);border:1px solid var(--b);padding:6px 10px}
-.box{background:var(--panel);border:1px solid var(--b);padding:6px 9px;margin-bottom:6px}
-.badge{position:absolute;left:50%;transform:translateX(-50%);bottom:10px;background:rgba(255,140,42,.92);color:#111;font-weight:bold;padding:4px 12px;font-size:12px;z-index:9}
-.label{position:absolute;font-size:12px;transform:translate(-50%,-100%);white-space:nowrap;text-shadow:0 0 3px #000}
+.glass{background:linear-gradient(180deg,rgba(14,23,41,.91),rgba(8,13,25,.93));border:1px solid rgba(90,200,255,.28);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.45);backdrop-filter:blur(3px)}
+.card{background:linear-gradient(180deg,rgba(26,38,62,.82),rgba(17,26,44,.84));border:1px solid rgba(255,255,255,.07);border-radius:9px;padding:9px 12px;margin:3px 0 6px}
+.top{position:absolute;left:0;top:0;right:0;height:62px;background:linear-gradient(180deg,rgba(14,22,40,.94),rgba(6,10,20,.95));display:flex;align-items:center;padding:0 18px;gap:12px}
+.top:after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:linear-gradient(90deg,var(--cy) 0,var(--cy) 35%,rgba(90,200,255,.27) 35%)}
+.logo b{font:24px DispB;color:#fff;letter-spacing:.5px;display:block;line-height:26px}.logo b i{font-style:normal;color:var(--or)}.logo span{color:var(--dim);font-size:12px}
+.sel{width:210px;height:46px;border-radius:8px;background:linear-gradient(180deg,#1c567a,#12384f);border:1px solid rgba(115,230,255,.85);padding:8px 14px;font:15px Disp;color:#fff}
+.sel small{font:11px Body;color:var(--dim)}
+.stat small{display:block;color:var(--dim);font-size:12px}.stat{font-size:14px}
+.bar{height:16px;border-radius:8px;background:rgba(0,0,0,.5);position:relative;font-size:11px;text-align:center;line-height:16px;overflow:hidden;color:#fff}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,.25),rgba(255,255,255,0) 55%),var(--c,#40c8ff)}.bar em{position:relative;font-style:normal}
+.btn{display:inline-block;padding:3px 10px;border-radius:7px;background:linear-gradient(180deg,#24365a,#16223a);border:1px solid rgba(115,205,255,.35);font:12.5px BodyB;white-space:nowrap;color:var(--tx)}
+.btn.acc{background:linear-gradient(180deg,#ffa852,#e2701c);border-color:rgba(255,217,153,.6);color:#1e0e00}
+.nav{position:absolute;left:10px;top:72px;width:176px;bottom:10px;padding:12px 8px}
+.nav div{height:38px;margin-bottom:4px;padding:8px 16px;font:15px Disp;border-radius:8px;position:relative;border:1px solid transparent}
+.nav div.on{background:linear-gradient(180deg,#1c567a,#12384f);border-color:rgba(115,230,255,.85);color:#fff}.nav div.on:before{content:"";position:absolute;left:4px;top:9px;bottom:9px;width:4px;border-radius:2px;background:var(--cy)}
+.nav div.lock{color:#56657a}.nav div.lock:after{content:"LOCKED";position:absolute;right:8px;top:12px;font:10px Body;color:#56657a}
+.panel{position:absolute;left:196px;top:72px;bottom:10px;padding:14px 18px;overflow:hidden}
+h1{font:26px DispB;margin:0;color:#fff}.dim{color:var(--dim);font-size:12px}.hr{height:2px;margin:6px 0 8px;background:linear-gradient(90deg,var(--cy) 25%,rgba(90,200,255,.27) 25%) ;background-size:100% 1px,100%;background-repeat:no-repeat}
+h3{font:16px Disp;color:var(--or);margin:10px 0 3px}
+.tabs span{display:inline-block;width:132px;padding:7px 14px;margin-right:6px;border-radius:8px;font:15px Disp;border:1px solid rgba(255,255,255,.06)}.tabs span.on{background:linear-gradient(180deg,#1c567a,#12384f);border-color:rgba(115,230,255,.85)}
+.row{display:flex;align-items:center;gap:6px;height:28px;font-size:13.5px}
+.pill{display:inline-block;padding:1px 9px;border-radius:9px;font:11px BodyB;text-align:center}
+.toast{position:absolute;right:10px;width:340px;padding:9px 12px 9px 20px;font-size:13.5px}.toast:before{content:"";position:absolute;left:6px;top:10px;bottom:10px;width:4px;border-radius:2px;background:var(--good)}
+.obj{position:absolute;right:10px;bottom:10px;width:330px;padding:8px 14px 10px 20px}.obj:before{content:"";position:absolute;left:6px;top:12px;bottom:12px;width:4px;border-radius:2px;background:var(--or)}
+.badge{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;background:rgba(255,150,60,.95);color:#1a0d00;font:12px BodyB;padding:4px 14px;border-radius:12px;z-index:9}
+.label{position:absolute;font:13px BodyB;transform:translate(-50%,-100%);white-space:nowrap;text-shadow:0 0 4px #000,0 0 2px #000}
 </style></head><body><canvas id="sky" width="1600" height="900"></canvas><div id="ui"></div>
-<div class="badge">PREVIEW RENDER from real simulation data (bot playthrough) - not a Unity screenshot</div>
+<div class="badge">PREVIEW RENDER · real simulation data &amp; the game's real textures/fonts · not a Unity screenshot</div>
 <script>
-const D=window.DATA, screen=new URLSearchParams(location.search).get('s')||'industries';
+const screen=new URLSearchParams(location.search).get('s')||'industries';
 const fmt=v=>{let a=Math.abs(v),s=['','K','M','B'],i=0;while(a>=1000&&i<3){a/=1000;v/=1000;i++}return (a<10&&a%1?v.toFixed(1):a<100&&i?v.toFixed(2):Math.round(v))+s[i]};
-const rate=r=>Math.abs(r)<.1&&r?(r>0?'+':'')+(r*60).toFixed(2)+'/min':(r>0?'+':'')+r.toFixed(2)+'/s';
-const st={Working:['Working','good'],LowPower:['Low power','warn'],NoPower:['No power','bad'],MissingInput:['Missing input','warn'],OutputFull:['Storage full','warn'],Paused:['Paused','dim'],NoDeposit:['No deposit','bad'],NoFuel:['No fuel','bad'],Idle:['Idle','dim']};
-const C=v=>getComputedStyle(document.documentElement).getPropertyValue('--'+v);
+const ST={Working:['Working','good'],LowPower:['Low power','warn'],NoPower:['No power','bad'],MissingInput:['Missing input','warn'],OutputFull:['Storage full','warn'],Paused:['Paused','dim'],NoDeposit:['No deposit','bad'],NoFuel:['No fuel','bad'],Idle:['Standby','dim']};
+const col=n=>getComputedStyle(document.documentElement).getPropertyValue('--'+n).trim();
+const pill=(t,c,w=96)=>`<span class="pill" style="width:${w}px;color:${col(c)};background:${col(c)}2e">${t}</span>`;
+const bar=(f,txt,w,c)=>`<div class="bar" style="width:${w}px;--c:${c||'#40c8ff'}"><i style="width:${Math.max(f>0?16:0,Math.min(1,f)*w)}px"></i><em>${txt||''}</em></div>`;
 const cv=document.getElementById('sky'),g=cv.getContext('2d');
-function rnd(s){return()=>(s=(s*16807)%2147483647)/2147483647}
-function sky(){g.fillStyle='#03050b';g.fillRect(0,0,1600,900);const r=rnd(7);for(let i=0;i<900;i++){const b=.35+r()*.65;g.fillStyle=`rgba(${255*b|0},${255*b|0},${(255*b*(r()>.8?1:.9))|0},1)`;g.fillRect(r()*1600,r()*900,1,1)}}
-function noise(x,y){return (Math.sin(x*1.7+y*.9)+Math.sin(x*3.1-y*2.3)*.5+Math.sin(x*6.3+y*5.1)*.25+Math.sin(x*12.7-y*9.4)*.12)/1.87*.5+.5}
-function planet(cx,cy,R,kind,buildings){
-  const img=g.createImageData(2*R,2*R);
-  for(let y=0;y<2*R;y++)for(let x=0;x<2*R;x++){const nx=(x-R)/R,ny=(y-R)/R,d=nx*nx+ny*ny;if(d>1)continue;const nz=Math.sqrt(1-d);
-    const lon=Math.atan2(nx,nz)+.6,lat=Math.asin(ny);const n=noise(lon*2.2,lat*3);let c;
-    if(kind=='earth'){c=Math.abs(lat)>1.25?[235,245,255]:n>.56?[60+120*(n-.56)*3,115-20*(n-.56),45+40*(n-.56)*3]:[10,40+60*n,100+90*n]}
-    else{const cr=noise(lon*9,lat*11);c=[150*(.6+n*.6),150*(.6+n*.6),155*(.6+n*.6)];if(cr>.78){c=c.map(v=>v*.75)}}
-    const l=Math.max(.08,(nx*-.55+ny*-.35+nz*.76));const i=(y*2*R+x)*4;img.data[i]=c[0]*l*1.2;img.data[i+1]=c[1]*l*1.2;img.data[i+2]=c[2]*l*1.2;img.data[i+3]=255}
-  g.putImageData(img,cx-R,cy-R);
-  if(kind=='earth'){const gr=g.createRadialGradient(cx,cy,R*.95,cx,cy,R*1.08);gr.addColorStop(0,'rgba(80,160,255,.35)');gr.addColorStop(1,'rgba(80,160,255,0)');g.fillStyle=gr;g.beginPath();g.arc(cx,cy,R*1.08,0,7);g.fill()}
-  let k=1;for(const b of buildings){for(const it of b.items){k++;const u=(.5+.7548776662466927*k)%1,v=(.5+.5698402909980532*k)%1,y=-.8+1.6*u,th=v*6.2832+.6,r=Math.sqrt(1-y*y),x=Math.cos(th)*r,z=Math.sin(th)*r;if(z<.12)continue;
-    const s=4+it.lv*1.3;const bad=['MissingInput','OutputFull'].includes(it.status);g.fillStyle=bad?'#ff8c1a':b.color||'#ccc';g.fillRect(cx+x*R-s/2,cy+y*R-s/2,s,s)}}
-}
-const pal={'Surface Mine':'#C0794A','Smelter':'#E67E22','Wind Turbine':'#ffffff','Research Laboratory':'#00E5FF','Component Factory':'#2980B9','Oil Derrick':'#55557a','Refinery':'#8E44AD','Rocket Assembly Building':'#ECF0F1','Chemical Plant':'#16A085','Water Pump':'#3FA9F5','Warehouse':'#7F8C8D','Solar Array':'#2E86C1','Helium-3 Harvester':'#E0F7FF','Ice Extractor':'#BFEFFF'};
-function topBar(S,cur){return `<div class="top"><div class="logo"><b>STELLAR INDUSTRIES</b><span>Preview Empire · ${S.play}</span></div>${S.locations.map(l=>`<div class="loc ${l==cur?'on':''}">${l}</div>`).join('')}
-<div class="stat"><small>ENERGY</small><span style="color:${S.supply>=S.demand?C('good'):C('warn')}">${fmt(S.supply)} / ${fmt(S.demand)} MW</span></div>
-<div class="stat"><small>SCIENCE</small><span style="color:var(--cy)">${fmt(S.science)}</span></div>
-<div class="stat" style="width:200px"><small>RESEARCH</small>${S.research?`<div class="bar"><i style="width:${S.rfrac*100}%;background:rgba(43,217,254,.75)"></i><em>${S.research}</em></div>`:'<span style="color:var(--warn)">idle</span>'}</div>
-<div class="stat"><small>MISSIONS</small>${S.missions.length} in flight</div><div style="margin-left:auto" class="btn">Save</div></div>`}
-function nav(on,late){const n=['Overview','Industries','Resources','Research','Spacecraft','Missions','Logistics','Galaxy Map','Statistics','Settings'];return `<div class="nav">${n.map(x=>`<div class="${x==on?'on':''}">${x}</div>`).join('')}<div class="dim" style="background:none;border:none;padding:6px 2px">Drag: rotate view<br>Wheel: zoom</div></div>`}
-function objective(S){return S.objective?`<div class="obj"><div class="dim">OBJECTIVE</div><div style="font-size:11.5px;margin:2px 0 5px"><span style="color:var(--or)">${S.objective.split(' - ')[0]}</span> ${S.objective.split(' - ')[1]}</div><div class="bar" style="height:11px"><i style="width:${Math.min(1,S.objp)*100}%;background:var(--or)"></i></div></div>`:''}
-function toasts(list){return list.map((t,i)=>`<div class="toast" style="top:${60+i*44}px">${t}</div>`).join('')}
-const ui=document.getElementById('ui');sky();
-if(screen=='industries'||screen=='moon'){
-  const S=screen=='moon'?D.moon:D.midgame;
-  S.buildings.forEach(b=>b.color=pal[b.name]);
-  planet(1210,470,250,screen=='moon'?'moon':'earth',S.buildings);
-  let rows='';for(const b of S.buildings){rows+=`<h3>${b.name}  x${b.items.length}</h3>`;for(const it of b.items.slice(0,screen=='moon'?5:3)){const [t,c]=st[it.status]||['Idle','dim'];
-    rows+=`<div class="row"><span style="width:36px">Lv ${it.lv}</span>${it.power?`<span style="width:252px;color:var(--good)">+${(it.speed*({'Wind Turbine':6,'Solar Array':8}[b.name]||20)*(1+.5*(it.lv-1))).toFixed(1)} MW</span>`:`<span class="btn">&lt;</span><span style="width:168px;overflow:hidden">${it.recipe}</span><span class="btn">&gt;</span>`}
-    <span style="width:92px;font-size:11px;color:var(--${c})">${t}</span>${it.power?'<span style="width:74px"></span>':`<div class="bar" style="width:70px"><i style="width:${Math.min(1,it.progress)*100}%;background:rgba(43,217,254,.8)"></i><em>${Math.round(it.speed*100)}%</em></div>`}
-    <span class="btn">Upgrade</span><span class="btn">Pause</span><span class="btn">Norm</span><span class="btn">X</span></div>`}if(b.items.length>(screen=='moon'?5:3))rows+=`<div class="dim">… ${b.items.length-3} more</div>`}
-  ui.innerHTML=topBar(S,S.loc)+nav('Industries')+`<div class="panel" style="width:780px"><h1>${S.loc} Industries</h1><div class="hr"></div>
-  <div style="font-size:11.5px">Gravity ${S.g.toFixed(2)} g · ${S.atm} · ${S.temp} °C · Solar ${Math.round(S.solar*100)}%</div>
+const TEX='/Assets/StellarIndustries/Resources/Textures/';
+function load(n){return new Promise(r=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas');const w=Math.min(i.width,2048),h=w/2;c.width=w;c.height=h;const x=c.getContext('2d');x.drawImage(i,0,0,w,h);r({w,h,d:x.getImageData(0,0,w,h).data})};i.onerror=()=>r(null);i.src=TEX+n+'.jpg'})}
+function samp(t,u,v){u=((u%1)+1)%1;v=Math.min(.9999,Math.max(0,v));const i=((v*t.h|0)*t.w+(u*t.w|0))*4;return [t.d[i],t.d[i+1],t.d[i+2]]}
+async function skyBg(){const t=await load('milky_way');g.fillStyle='#04070e';g.fillRect(0,0,1600,900);if(!t)return;const img=g.createImageData(1600,900);
+  for(let y=0;y<900;y++)for(let x=0;x<1600;x++){const c=samp(t,.30+x/1600*.42,.28+y/900*.42);const i=(y*1600+x)*4;img.data[i]=c[0]*.62;img.data[i+1]=c[1]*.64;img.data[i+2]=c[2]*.72;img.data[i+3]=255}g.putImageData(img,0,0)}
+const L=(()=>{const v=[-.75,.18,.64];const n=Math.hypot(...v);return v.map(a=>a/n)})();
+async function planet(cx,cy,R,o){const day=await load(o.tex),night=o.night?await load(o.night):null,cl=o.clouds?await load(o.clouds):null;
+  const tint=o.tint||[1,1,1],tilt=(o.tilt||0)*Math.PI/180,rot=o.rot||0,ac=o.atmo;const S=2*R+80;const img=g.getImageData(cx-R-40,cy-R-40,S,S);
+  for(let py=0;py<S;py++)for(let px=0;px<S;px++){const nx=(px-R-40)/R,ny=-(py-R-40)/R,d2=nx*nx+ny*ny,i=(py*S+px)*4;
+    if(d2>1){if(ac){const d=Math.sqrt(d2);const a=Math.pow(Math.max(0,1-(d-1)/.09),2.2)*o.atmoA;const lit=Math.max(.08,(nx*L[0]+ny*L[1])/d*.7+.45);for(let k=0;k<3;k++)img.data[i+k]=img.data[i+k]*(1-a*lit)+ac[k]*255*a*lit}continue}
+    const nz=Math.sqrt(1-d2);let x=nx,y=ny*Math.cos(tilt)-nx*Math.sin(tilt)*0,z=nz;y=ny*Math.cos(tilt)+nx*Math.sin(tilt);x=nx*Math.cos(tilt)-ny*Math.sin(tilt);
+    const lat=Math.asin(Math.max(-1,Math.min(1,y))),lon=Math.atan2(x,z)+rot;const u=.5+lon/(2*Math.PI),v=.5-lat/Math.PI;
+    let c=samp(day,u,v);c=[c[0]*tint[0],c[1]*tint[1],c[2]*tint[2]];const ndl=nx*L[0]+ny*L[1]+nz*L[2];const lit=Math.max(0,ndl);let r=c[0]*(.035+lit*1.15),gg=c[1]*(.035+lit*1.15),b=c[2]*(.04+lit*1.15);
+    if(night){const n=samp(night,u,v);const k=Math.max(0,Math.min(1,(.12-ndl)/.3));r+=n[0]*k*.9;gg+=n[1]*k*.8;b+=n[2]*k*.55}
+    if(o.ocean&&c[2]>c[0]*1.25&&c[2]>c[1]){const h=[L[0],L[1],L[2]+1];const hn=Math.hypot(...h);const sp=Math.pow(Math.max(0,(nx*h[0]+ny*h[1]+nz*h[2])/hn),60)*120;r+=sp;gg+=sp;b+=sp*.95}
+    if(cl){const cc=samp(cl,u+.02,v)[0]/255;const a=Math.min(1,cc*1.1);const cv2=255*(.03+lit*1.05);r=r*(1-a)+cv2*a;gg=gg*(1-a)+cv2*a;b=b*(1-a)+cv2*a*1.02}
+    if(ac){const f=Math.pow(1-nz,3)*o.atmoA;const k=f*Math.max(.12,lit+.25);r+=ac[0]*255*k;gg+=ac[1]*255*k;b+=ac[2]*255*k}
+    const edge=Math.min(1,(1-Math.sqrt(d2))*R*1.2);img.data[i]=img.data[i]*(1-edge)+Math.min(255,r)*edge;img.data[i+1]=img.data[i+1]*(1-edge)+Math.min(255,gg)*edge;img.data[i+2]=img.data[i+2]*(1-edge)+Math.min(255,b)*edge}
+  g.putImageData(img,cx-R-40,cy-R-40);
+  if(o.buildings){let k=0;for(const b of o.buildings)for(const it of b.items){k++;const u=(.5+.7548776662466927*k)%1,v=(.5+.5698402909980532*k)%1,y=-.8+1.6*u,th=v*6.2832,rr=Math.sqrt(1-y*y);let x=Math.cos(th)*rr,z=Math.sin(th)*rr;
+    const xr=x*Math.cos(rot)-z*Math.sin(rot),zr=x*Math.sin(rot)+z*Math.cos(rot);if(zr<.15)continue;const X=xr*Math.cos(-tilt)-y*Math.sin(-tilt),Y=xr*Math.sin(-tilt)+y*Math.cos(-tilt);
+    const s=3+it.lv*1.1,bad=['MissingInput','OutputFull'].includes(it.status);g.fillStyle=bad?'#ffa040':(b.color||'#dde');g.shadowColor=g.fillStyle;g.shadowBlur=6;g.fillRect(cx+X*R*.995-s/2,cy-Y*R*.995-s/2,s,s);g.shadowBlur=0}}}
+function glow(x,y,r,c,a=1){const gr=g.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,c);gr.addColorStop(.25,c+'cc');gr.addColorStop(1,c+'00');g.globalAlpha=a;g.fillStyle=gr;g.beginPath();g.arc(x,y,r,0,7);g.fill();g.globalAlpha=1}
+const pal={'Surface Mine':'#C0794A','Smelter':'#E67E22','Wind Turbine':'#ffffff','Research Laboratory':'#00E5FF','Component Factory':'#4aa3ff','Oil Derrick':'#8a8ac0','Refinery':'#b46ad0','Rocket Assembly Building':'#ffffff','Chemical Plant':'#2fd0a8','Water Pump':'#3FA9F5','Warehouse':'#a0aab0','Solar Array':'#5ab0ff','Helium-3 Harvester':'#E0F7FF','Ice Extractor':'#BFEFFF'};
+function topBar(S,cur,sys){return `<div class="top"><div class="logo" style="width:270px"><b>STELLAR <i>INDUSTRIES</i></b><span>Preview Empire · ${S.play}</span></div>
+<div class="sel" style="position:relative;padding:4px 14px;line-height:18px"><b style="font:15px BodyB">${cur}</b><br><small>${sys?sys+' · ':'Sol · '}${S.locations.length} worlds</small><span style="position:absolute;right:12px;top:11px;font:14px Body">v</span></div><div style="width:6px"></div>
+<div class="stat" style="width:150px"><small>ENERGY</small><span style="color:${S.supply>=S.demand?col('good'):col('warn')}">${fmt(S.supply)} / ${fmt(S.demand)} MW</span></div>
+<div class="stat" style="width:150px"><small>SCIENCE</small><span style="color:var(--cy)">${fmt(S.science)}</span></div>
+<div class="stat" style="width:220px"><small>RESEARCH</small>${S.research?bar(S.rfrac,S.research,210):'<span style="color:var(--warn)">idle - choose a project</span>'}</div>
+<div class="stat"><small>MISSIONS</small>${S.missions.length} in flight</div><div style="margin-left:auto" class="btn" style="padding:7px 16px">Save</div></div>`}
+function nav(on){const n=['Overview','Industries','Resources','Research','Spacecraft','Missions','Logistics','Galaxy Map','Statistics','Settings'];return `<div class="nav glass">${n.map(x=>`<div class="${x==on?'on':''}">${x}</div>`).join('')}<div class="dim" style="position:absolute;bottom:10px;left:14px;border:none;height:auto;padding:0;font:12px Body">Drag: rotate view<br>Wheel: zoom · F5: save</div></div>`}
+const objective=S=>S.objective?`<div class="obj glass"><div class="dim">CURRENT OBJECTIVE</div><div style="margin:2px 0 7px"><span style="color:var(--or)">${S.objective.split(' - ')[0]}</span> <span style="font-size:12px">${S.objective.split(' - ')[1]}</span></div>${bar(Math.min(1,S.objp),'',296,'#ff963c')}</div>`:'';
+const toasts=(l,c)=>l.map((t,i)=>`<div class="toast glass" style="top:${72+i*52}px">${t}</div>`).join('');
+const ui=document.getElementById('ui');
+(async()=>{const D=await (await fetch('data.json')).json();await skyBg();
+if(screen=='menu'){const S=D.midgame;await planet(1080,450,330,{tex:'earth_day',night:'earth_night',clouds:'earth_clouds',atmo:[.44,.72,1],atmoA:1,tilt:23.44,rot:-2.2,ocean:true});
+  const slot=(n,h)=>`<div class="card" style="height:104px;padding:10px 16px"><div class="dim">SLOT ${n}</div>${h}</div>`;
+  ui.innerHTML=`<div class="glass" style="position:absolute;left:24px;top:24px;bottom:24px;width:560px;padding:36px"><div style="font:64px DispB;color:#fff;line-height:64px;margin-top:6px">STELLAR</div><div style="font:64px DispB;color:var(--or);line-height:64px">INDUSTRIES</div>
+  <div style="width:90px;height:3px;background:var(--cy);margin:10px 0 12px"></div><div style="font-size:17px;color:#ccdcf0">From one rocket factory on Earth to industry around other stars.</div>
+  <div class="dim" style="margin-top:22px">EMPIRE NAME</div><div style="height:38px;border-radius:7px;border:1px solid rgba(115,205,255,.35);background:#060b16;margin:4px 0 14px;padding:7px 12px;font-size:17px">Stellar Industries</div>
+  ${slot(1,`<div style="font:17px BodyB;margin-top:2px">Preview Empire</div><div class="dim">${S.play} played · ${S.count+16} facilities · 2 worlds · 2026-11-01 08:40</div><div style="margin-top:8px"><span class="btn acc" style="width:120px;text-align:center">Continue</span> <span class="btn" style="width:110px;text-align:center">New Game</span> <span class="btn" style="width:84px;text-align:center">Delete</span></div>`)}
+  ${slot(2,`<div style="color:var(--dim);margin:6px 0 10px">Empty slot</div><span class="btn acc" style="width:160px;text-align:center">Start New Game</span>`)}
+  ${slot(3,`<div style="color:var(--dim);margin:6px 0 10px">Empty slot</div><span class="btn acc" style="width:160px;text-align:center">Start New Game</span>`)}
+  <div style="position:absolute;bottom:28px;left:36px;display:flex;gap:14px;align-items:center"><span class="btn" style="padding:7px 26px">Quit</span><span class="dim">Planet textures: Solar System Scope (CC BY 4.0),<br>based on NASA imagery.</span></div></div>`;}
+if(screen=='industries'||screen=='moon'){const S=screen=='moon'?D.moon:D.midgame;S.buildings.forEach(b=>b.color=pal[b.name]);
+  if(screen=='moon')await planet(1215,500,285,{tex:'moon',tilt:6.68,rot:.4,buildings:S.buildings});else await planet(1215,500,285,{tex:'earth_day',night:'earth_night',clouds:'earth_clouds',atmo:[.44,.72,1],atmoA:1,tilt:23.44,rot:-1.4,ocean:true,buildings:S.buildings});
+  let rows='';S.buildings.forEach((b,bi)=>{const w=b.items.filter(i=>i.status=='Working').length,bl=b.items.filter(i=>['MissingInput','OutputFull','NoPower','NoDeposit','NoFuel'].includes(i.status)).length;const open=(screen=='moon'?bi<3:bi<2);
+    rows+=`<div class="card"><div class="row"><span style="width:250px"><span class="dim">${open?'−':'+'}</span>&nbsp; <b style="font-family:BodyB">${b.name}</b> <span class="dim">x${b.items.length}</span></span>${pill(w+' working','good',86)}${bl?pill(bl+' blocked','warn',80):''}<span style="flex:1"></span><span class="btn">Upgrade all</span><span class="btn">Pause all</span></div>`;
+    if(open)for(const it of b.items.slice(0,4)){const [t,c]=ST[it.status]||ST.Idle;rows+=`<div class="row"><span style="width:40px">Lv ${it.lv}</span>${it.power?`<span style="width:258px;color:var(--good)">+${(it.speed*({'Wind Turbine':6,'Solar Array':8}[b.name]||20)*(1+.5*(it.lv-1))).toFixed(1)} MW</span>`:`<span class="btn">&lt;</span><span style="width:176px">${it.recipe}</span><span class="btn">&gt;</span>`}${pill(t,c)}${it.power?'<span style="width:82px"></span>':bar(it.progress,Math.round(it.speed*100)+'%',78)}<span class="btn">Upgrade</span><span class="btn">Pause</span><span class="btn">Norm</span><span class="btn">X</span></div>`}
+    rows+='</div>'});
+  ui.innerHTML=topBar(S,S.loc)+nav('Industries')+`<div class="panel glass" style="width:800px"><h1>${S.loc} Industries</h1><div class="hr"></div>
+  <div style="font-size:13px">Gravity ${S.g.toFixed(2)} g · ${S.atm} · ${S.temp} °C · Solar ${Math.round(S.solar*100)}% · Wind ${S.loc=='Earth'?'yes':'no'}</div>
   <div class="dim">Radius ${Math.round(S.radius)} km · Escape velocity ${S.esc.toFixed(2)} km/s · Day ${S.day} h · Sunlight ${Math.round(S.irr)} W/m² at ${S.au} AU</div>
-  <div class="dim">Deposits: ${S.deposits}</div><div class="tabs" style="margin:6px 0"><span class="on">Facilities</span><span>Construct</span><span>Manual Work</span></div>${rows}</div>`
-  +toasts(screen=='moon'?['Built Helium-3 Harvester on Moon','Mission success: Lunar Supply Run']:['Research complete: Lunar Navigation','Liftoff! Lunar Rocket launched: Lunar Landing'])+objective(S);
-}
-if(screen=='research'){
-  const S=D.midgame;const tiers={};S.techs.forEach(t=>{(tiers[t.tier]=tiers[t.tier]||[]).push(t);t.r=tiers[t.tier].length-1});
-  const pos={};S.techs.forEach(t=>pos[t.id]=[10+(t.tier-1)*205,10+t.r*66]);
-  const col={Completed:'#2a8c52',Researching:'#1a8cbf',Queued:'#5a5aa6',Available:'#8c520f',Locked:'#262b35'};
-  let lines='',nodes='';S.techs.forEach(t=>t.pre.forEach(p=>{if(!pos[p])return;const [x1,y1]=[pos[p][0]+170,pos[p][1]+28],[x2,y2]=[pos[t.id][0],pos[t.id][1]+28],mx=x2-14,done=S.techs.find(q=>q.id==p).status=='Completed',c=done?'rgba(43,217,254,.55)':'rgba(128,140,153,.3)';
+  <div class="dim">Deposits: ${S.deposits}</div><div class="tabs" style="margin:10px 0 6px"><span class="on">Facilities</span><span>Construct</span><span>Manual Work</span></div>${rows}</div>`
+  +toasts(screen=='moon'?['Built Helium-3 Harvester on Moon','Mission success: Lunar Supply Run']:['Research complete: Lunar Navigation','Liftoff! Lunar Rocket launched: Lunar Landing'])+objective(S);}
+if(screen=='research'){const S=D.midgame;const tiers={};S.techs.forEach(t=>{(tiers[t.tier]=tiers[t.tier]||[]).push(t);t.r=tiers[t.tier].length-1});const pos={};S.techs.forEach(t=>pos[t.id]=[14+(t.tier-1)*220,14+t.r*70]);
+  const C={Completed:'linear-gradient(180deg,#2f9a62,#226e47)',Researching:'linear-gradient(180deg,#2a9fd6,#1a6f99)',Queued:'linear-gradient(180deg,#6a6ac0,#4a4a90)',Available:'linear-gradient(180deg,#c47a26,#8c520f)',Locked:'linear-gradient(180deg,#232b3a,#1a2130)'};
+  let lines='',nodes='';S.techs.forEach(t=>t.pre.forEach(p=>{if(!pos[p])return;const [x1,y1]=[pos[p][0]+184,pos[p][1]+30],[x2,y2]=[pos[t.id][0],pos[t.id][1]+30],mx=x2-16,done=S.techs.find(q=>q.id==p).status=='Completed',c=done?'rgba(64,224,255,.55)':'rgba(128,140,153,.28)';
     lines+=`<div style="position:absolute;left:${x1}px;top:${y1-1}px;width:${mx-x1}px;height:2px;background:${c}"></div><div style="position:absolute;left:${mx-1}px;top:${Math.min(y1,y2)-1}px;width:2px;height:${Math.abs(y2-y1)+2}px;background:${c}"></div><div style="position:absolute;left:${mx}px;top:${y2-1}px;width:${x2-mx}px;height:2px;background:${c}"></div>`}));
-  S.techs.forEach(t=>{const [x,y]=pos[t.id];nodes+=`<div style="position:absolute;left:${x}px;top:${y}px;width:170px;height:56px;background:${col[t.status]};border:1px solid ${t.id=='fusion_power'?'var(--or)':'var(--b)'};padding:5px 7px;font-size:11.5px"><span style="color:${t.status=='Locked'?C('dim'):'#fff'}">${t.name}</span><br><span class="dim">${t.cat} · ${fmt(t.cost)} sci</span></div>`});
-  const sel=S.techs.find(t=>t.id=='fusion_power');
-  ui.innerHTML=topBar(S,'Earth')+nav('Research')+`<div class="panel" style="width:1426px;right:8px"><h1 style="display:inline">Technology Tree</h1> <span style="font-size:11px;margin-left:20px"><span style="color:#5fd68f">■ Completed</span> <span style="color:var(--cy)">■ Researching</span> <span style="color:var(--or)">■ Available</span> <span class="dim">■ Locked</span></span>
-  <div style="position:relative;height:560px;margin-top:8px;overflow:hidden">${lines}${nodes}</div><div class="hr"></div>
-  <div style="display:flex;gap:40px"><div style="width:440px"><span style="color:var(--cy)">${sel.name}</span> <span class="dim">${sel.status}</span><div>Fusion reactors burning lunar helium-3. +20% energy output.</div><div style="font-size:11px">Cost: <span style="color:var(--cy)">3K science</span> + 20 Helium-3 (paid on Earth at start)</div><div style="font-size:11px">Requires: <span style="color:var(--good)">Lunar Industry</span>, <span style="color:var(--good)">Photovoltaics</span></div><div style="font-size:11px;color:var(--warn)">Materials must be on Earth before the project can start. Missing: Helium-3 0/20</div><div style="margin-top:6px"><span class="btn acc" style="padding:6px 14px">Start research</span></div></div>
-  <div><h3>Unlocks</h3><div style="font-size:11px">• Building: Fusion Reactor<br>• Recipe: Fuse Helium-3<br>• Bonus: EnergyOutput +20%</div></div></div></div>`;
-}
-if(screen=='galaxy'){
-  const S=D.late;const yaw=.35,pitch=.55,dist=520,f=900;
-  const proj=p=>{let x=p.x*Math.cos(yaw)-p.z*Math.sin(yaw),z=p.x*Math.sin(yaw)+p.z*Math.cos(yaw),y=p.y;let y2=y*Math.cos(pitch)-z*Math.sin(pitch),z2=y*Math.sin(pitch)+z*Math.cos(pitch)+dist;return [1010+x*f/z2,470-y2*f/z2,z2]};
-  g.lineWidth=1;for(const ly of [5,10,20,40]){g.strokeStyle='rgba(43,217,254,.16)';g.beginPath();for(let a=0;a<=64;a++){const r=40*Math.sqrt(ly),[x,y]=proj({x:r*Math.cos(a/64*6.283),y:0,z:r*Math.sin(a/64*6.283)});a?g.lineTo(x,y):g.moveTo(x,y)}g.stroke();const [lx,ly2]=proj({x:40*Math.sqrt(ly),y:0,z:0});g.fillStyle='rgba(43,217,254,.5)';g.font='11px DejaVu Sans';g.fillText(ly+' ly',lx+4,ly2)}
+  S.techs.forEach(t=>{const [x,y]=pos[t.id];nodes+=`<div style="position:absolute;left:${x}px;top:${y}px;width:184px;height:60px;background:${C[t.status]};border:1px solid ${t.status=='Researching'?'var(--cy)':'rgba(255,255,255,.12)'};border-radius:8px;padding:6px 10px;font-size:13px;box-shadow:0 3px 10px rgba(0,0,0,.35)"><b style="font-family:BodyB;color:${t.status=='Locked'?col('dim'):'#fff'}">${t.name}</b><br><span style="font-size:11px;color:${t.status=='Locked'?col('dim'):'#d8e8ff'}">${t.cat} · ${fmt(t.cost)} sci</span>${t.status=='Researching'?`<div style="position:absolute;left:8px;right:8px;bottom:5px;height:4px;border-radius:2px;background:rgba(0,0,0,.4)"><div style="width:${S.rfrac*100}%;height:4px;border-radius:2px;background:var(--cy)"></div></div>`:''}</div>`});
+  const leg=['Completed','Researching','Queued','Available','Locked'].map(k=>`<span style="display:inline-block;width:12px;height:12px;border-radius:4px;background:${C[k]};vertical-align:-1px"></span> ${k} &nbsp; `).join('');
+  const sel=S.techs.find(t=>t.status=='Researching')||S.techs.find(t=>t.status=='Available');
+  ui.innerHTML=topBar(S,'Earth')+nav('Research')+`<div class="panel glass" style="right:10px"><h1 style="display:inline">Technology Tree</h1> <span style="font-size:12px;margin-left:24px">${leg}</span>
+  <div style="position:relative;height:560px;margin-top:10px;overflow:hidden">${lines}${nodes}</div><div class="hr"></div>
+  <div style="display:flex;gap:40px"><div style="width:460px"><span style="color:var(--cy);font:20px DispB">${sel.name}</span> <span class="dim">${sel.status}</span><div style="font-size:13px;margin:2px 0">${sel.cat} · ${fmt(sel.cost)} science</div><div class="dim">Research in progress; labs supply science continuously.</div><div style="margin-top:8px"><span class="btn" style="padding:6px 16px">Cancel</span></div></div>
+  <div><h3>Unlocks</h3><div style="font-size:12.5px">${sel.id=='titanium_metallurgy'?'• Recipe: Smelt Titanium Alloy<br>• Recipe: Assemble Lunar Shuttle':'• See details in game'}</div></div></div></div>`;}
+if(screen=='map'){const S=D.moon;const proj=(x,z,y=0)=>{const yaw=.5,p=.9;const X=x*Math.cos(yaw)-z*Math.sin(yaw),Z=x*Math.sin(yaw)+z*Math.cos(yaw);const yy=y*Math.cos(p)-Z*Math.sin(p),zz=y*Math.sin(p)+Z*Math.cos(p)+120;return [1020+X*900/zz,470-yy*900/zz,zz]};
+  for(const [r,c] of [[30,'rgba(64,224,255,.45)'],[46,'rgba(130,150,170,.25)']]){g.strokeStyle=c;g.lineWidth=1.5;g.beginPath();for(let a=0;a<=96;a++){const [x,y]=proj(r*Math.cos(a/96*6.283),r*Math.sin(a/96*6.283));a?g.lineTo(x,y):g.moveTo(x,y)}g.stroke()}
+  const [sx,sy]=proj(0,0);glow(sx,sy,150,'#ffc864',.85);await planet(sx,sy,46,{tex:'sun',atmo:null});glow(sx,sy,70,'#fff0c0',.35);
+  const ea=2.3,[ex,ey]=proj(30*Math.cos(ea),30*Math.sin(ea));g.strokeStyle='rgba(64,224,255,.35)';g.beginPath();for(let a=0;a<=64;a++){const [x,y]=proj(30*Math.cos(ea)+5.5*Math.cos(a/64*6.283),30*Math.sin(ea)+5.5*Math.sin(a/64*6.283));a?g.lineTo(x,y):g.moveTo(x,y)}g.stroke();
+  await planet(ex,ey,30,{tex:'earth_day',night:'earth_night',clouds:'earth_clouds',atmo:[.44,.72,1],atmoA:1,tilt:23.44,ocean:true});const [mx,my]=proj(30*Math.cos(ea)+5.5*Math.cos(-1.2),30*Math.sin(ea)+5.5*Math.sin(-1.2));await planet(mx,my,9,{tex:'moon'});
+  const ma=-.9,[rx,ry]=proj(46*Math.cos(ma),46*Math.sin(ma));await planet(rx,ry,17,{tex:'mars',atmo:[.91,.64,.49],atmoA:.35,tilt:25.19});
+  const lab=(x,y,t,c)=>`<div class="label" style="left:${x}px;top:${y}px;color:${c}">${t}</div>`;
+  const rows=[['Earth','Planet','76 facilities · 90 MW','1.00 g · 15 °C · sunlight 100% of Earth surface','cy'],['Moon','Moon of Earth','16 facilities · 53 MW','0.17 g · -20 °C · sunlight 133% of Earth surface','cy'],['Mars','Planet','Unexplored - reach it with: Mars Landing','0.38 g · -65 °C · sunlight 49% of Earth surface','dim']].map(r=>`<div class="card"><span style="color:var(--${r[4]});font-family:BodyB">${r[0]}</span> <span class="dim">${r[1]}</span><div style="font-size:12px">${r[2]}</div><div class="dim">${r[3]}</div><span class="btn">Focus</span> ${r[4]=='cy'?'<span class="btn acc">Manage</span>':''}</div>`).join('');
+  ui.innerHTML=topBar(S,'Moon')+nav('Galaxy Map')+`<div class="panel glass" style="width:390px"><div class="tabs"><span class="on" style="width:170px">Sol System</span><span style="width:170px">Nearby Stars</span></div><div class="dim" style="margin:8px 0">Click a body in the map or the list. Drag to rotate, scroll to zoom.</div>${rows}</div>`
+   +lab(sx,sy-58,'Sun','#ffe2a0')+lab(ex,ey-36,'Earth',col('cy'))+lab(mx,my-14,'Moon',col('cy'))+lab(rx,ry-24,'Mars (unexplored)',col('dim'))+toasts(['Mission success: Lunar Supply Run']);}
+if(screen=='galaxy'){const S=D.late;const yaw=.35,pitch=.55,dist=520,f=900;const proj=p=>{let x=p.x*Math.cos(yaw)-p.z*Math.sin(yaw),z=p.x*Math.sin(yaw)+p.z*Math.cos(yaw),y=p.y;let y2=y*Math.cos(pitch)-z*Math.sin(pitch),z2=y*Math.sin(pitch)+z*Math.cos(pitch)+dist;return [1030+x*f/z2,470-y2*f/z2,z2]};
+  for(const ly of [5,10,20,40]){g.strokeStyle='rgba(64,224,255,.18)';g.lineWidth=1;g.beginPath();for(let a=0;a<=96;a++){const r=40*Math.sqrt(ly),[x,y]=proj({x:r*Math.cos(a/96*6.283),y:0,z:r*Math.sin(a/96*6.283)});a?g.lineTo(x,y):g.moveTo(x,y)}g.stroke();const [lx,l2]=proj({x:40*Math.sqrt(ly),y:0,z:0});g.fillStyle='rgba(64,224,255,.6)';g.font='12px Body';g.fillText(ly+' ly',lx+5,l2)}
   let labels='';const sol=proj({x:0,y:0,z:0});
-  for(const s of D.stars){const [x,y,z]=proj(s);if(s.id!='sol'){const reached=s.planets.some(p=>p.unlocked);g.strokeStyle=reached?'rgba(255,140,40,.85)':'rgba(130,150,170,.3)';g.lineWidth=reached?3:1.2;g.beginPath();g.moveTo(sol[0],sol[1]);g.lineTo(x,y);g.stroke()}
-    const r=(1.6+2.2*Math.pow(Math.max(1e-4,s.lum),.2))*f/z*1.4;const gr=g.createRadialGradient(x,y,0,x,y,r*3);gr.addColorStop(0,s.color);gr.addColorStop(.35,s.color+'aa');gr.addColorStop(1,s.color+'00');g.fillStyle=gr;g.beginPath();g.arc(x,y,r*3,0,7);g.fill();
-    labels+=`<div class="label" style="left:${x}px;top:${y-r*2-4}px;color:${s.id=='sol'||s.planets.some(p=>p.unlocked)?C('cy'):C('dim')}">${s.id=='sol'?'Sun':s.name+'  '+s.ly.toFixed(1)+' ly'}</div>`}
-  const tr=D.stars.find(s=>s.id=='trappist1'),[tx,ty]=proj({x:tr.x*.38,y:tr.y*.38,z:tr.z*.38});g.fillStyle='#4cf2ff';g.beginPath();g.arc(tx,ty,5,0,7);g.fill();labels+=`<div class="label" style="left:${tx}px;top:${ty-8}px;color:#4cf2ff;font-size:11px">Seed ship → TRAPPIST-1e</div>`;
-  const ac=D.stars.find(s=>s.id=='alpha_centauri');
-  const sysList=D.stars.filter(s=>s.id!='sol').sort((a,b)=>a.ly-b.ly).map(s=>`<div class="box" style="${s.id=='alpha_centauri'?'border-color:var(--cy);background:#123c55':''}"><span style="color:${s.id=='alpha_centauri'?C('or'):C('cy')}">${s.name}</span> <span class="dim">${s.ly.toFixed(2)} ly · ${s.type}</span></div>`+(s.id=='alpha_centauri'?`<div style="font-size:12px;margin:0 0 4px">${s.desc}</div><div class="dim">Luminosity ${s.lum} L☉ · light needs ${s.ly.toFixed(1)} years to reach us</div><div class="dim"><span style="color:var(--or)">Status: </span>${s.notes}</div><div style="color:var(--good);font-size:11.5px;margin:3px 0">Surveyed by laser-sail probes</div>`+s.planets.map(p=>`<div class="box"><span style="color:${p.unlocked?C('cy'):C('dim')}">${p.name}</span> <span class="dim">Planet</span><div style="font-size:11px">${p.status}</div><div style="font-size:11px">${p.unlocked?'Colony established':'<span class="dim">Unexplored - reach it with: Seed Ship to '+p.name+'</span>'}</div><div class="dim">${p.g.toFixed(2)} g · ${p.t} °C · sunlight ${Math.round(p.sun*100)}% of Earth surface</div><div class="dim">Hazards: ${p.hazards}</div>${p.unlocked?'<span class="btn acc">Manage</span>':''}</div>`).join(''):'')).join('');
-  ui.innerHTML=topBar(S,'Earth')+nav('Galaxy Map')+`<div class="panel" style="width:380px"><div class="tabs"><span style="width:170px">Sol System</span><span class="on" style="width:170px">Nearby Stars</span></div><div class="dim" style="margin:6px 0">Real star systems with confirmed exoplanets. Directions are real (right ascension / declination); distances are compressed (square root).</div>${sysList}</div>`+labels+toasts(['New location reached: Proxima b','Mission success: Probe Swarm: TRAPPIST-1']);
-}
+  for(const s of D.stars){const [x,y,z]=proj(s);if(s.id!='sol'){const reached=s.planets.some(p=>p.unlocked);g.strokeStyle=reached?'rgba(255,150,60,.9)':'rgba(140,160,180,.3)';g.lineWidth=reached?3:1.2;g.beginPath();g.moveTo(sol[0],sol[1]);g.lineTo(x,y);g.stroke()}
+    const r=(1.6+2.2*Math.pow(Math.max(1e-4,s.lum),.2))*f/z;glow(x,y,r*9,s.color,.9);glow(x,y,r*2.2,'#ffffff',.9);
+    labels+=`<div class="label" style="left:${x}px;top:${y-r*3-6}px;color:${s.id=='sol'||s.planets.some(p=>p.unlocked)?col('cy'):'#c0cad6'}">${s.id=='sol'?'Sun':s.name+'  '+s.ly.toFixed(1)+' ly'}</div>`}
+  const tr=D.stars.find(s=>s.id=='trappist1'),[tx,ty]=proj({x:tr.x*.38,y:tr.y*.38,z:tr.z*.38});glow(tx,ty,14,'#40e0ff');labels+=`<div class="label" style="left:${tx}px;top:${ty-10}px;color:#7cefff;font-size:12px">Seed ship &gt; TRAPPIST-1e</div>`;
+  const sys=D.stars.filter(s=>s.id!='sol').sort((a,b)=>a.ly-b.ly).map(s=>`<div class="card" style="${s.id=='alpha_centauri'?'border-color:rgba(115,230,255,.85);background:linear-gradient(180deg,#1c567a,#12384f)':''};padding:7px 12px"><span style="color:${s.id=='alpha_centauri'?col('or'):col('cy')};font-family:BodyB">${s.name}</span> <span class="dim">${s.ly.toFixed(2)} ly · ${s.type}</span></div>`+(s.id=='alpha_centauri'?`<div style="font-size:12.5px;margin:2px 2px 4px">${s.desc}</div><div class="dim"><span style="color:var(--or)">Status: </span>${s.notes}</div><div style="color:var(--good);font-size:12px;margin:4px 0">Surveyed by laser-sail probes</div>`+s.planets.map(p=>`<div class="card"><span style="color:${p.unlocked?col('cy'):col('dim')};font-family:BodyB">${p.name}</span> <span class="dim">Planet</span><div style="font-size:12px">${p.status}</div><div class="dim">${p.g.toFixed(2)} g · ${p.t} °C · sunlight ${Math.round(p.sun*100)}% of Earth surface</div>${p.unlocked?'<span class="btn acc">Manage</span>':'<div class="dim">Unexplored - Seed Ship to '+p.name+'</div>'}</div>`).join(''):'')).join('');
+  ui.innerHTML=topBar(S,'Earth')+nav('Galaxy Map')+`<div class="panel glass" style="width:390px"><div class="tabs"><span style="width:170px">Sol System</span><span class="on" style="width:170px">Nearby Stars</span></div><div class="dim" style="margin:8px 0">Real star systems with confirmed exoplanets. Directions are real (right ascension / declination); distances compressed (square root).</div>${sys}</div>`+labels+toasts(['New location reached: Proxima b','Mission success: Probe Swarm: TRAPPIST-1']);}
+if(screen=='proxima'){const S=D.late;await planet(1215,470,285,{tex:'exo_rock_a',tint:[1,.79,.66],atmo:[1,.69,.54],atmoA:.25,rot:.8});glow(1500,140,160,'#ff7a4a',.35);
+  ui.innerHTML=topBar(S,'Proxima b','Alpha Centauri')+nav('Industries')+`<div class="panel glass" style="width:800px"><h1>Proxima b Industries</h1><div class="dim">Alpha Centauri system · Confirmed (2016) · min. mass 1.055 Earth masses · 11.19 d orbit</div><div class="hr"></div>
+  <div style="font-size:13px">Gravity 1.04 g · Atmosphere unknown · -39 °C · Solar 70% · Wind no</div><div class="dim">Radius 6463 km · Escape velocity 11.40 km/s · Sunlight 898 W/m² at 0.048 AU</div><div class="dim">Hazards: Stellar flares (brightness x100 within hours), Likely tidally locked, Atmosphere unknown</div>
+  <div class="tabs" style="margin:10px 0 6px"><span>Facilities</span><span class="on">Construct</span><span>Manual Work</span></div>
+  ${[['Solar Array','Output depends on sunlight at the location.','10 Iron Plate  4 Silicon Wafer  6 Copper Wire','+5.6 MW'],['Surface Mine','Extracts surface ore deposits. Select which deposit to mine.','12 Iron Plate','-2 MW'],['Smelter','Turns ore into metals.','15 Iron Plate','-3 MW'],['Ice Extractor','Heats and extracts frozen volatiles.','15 Iron Plate  6 Circuit Board','-3 MW']].map(b=>`<div class="card" style="display:flex;align-items:center"><div style="flex:1"><span style="color:var(--cy);font-family:BodyB">${b[0]}</span><div class="dim">${b[1]}</div><div style="font-size:12px">Cost: ${b[2]} &nbsp; <span style="color:${b[3][0]=='+'?col('good'):col('warn')}">${b[3]}</span></div></div><span class="btn acc" style="padding:10px 18px">Build</span></div>`).join('')}
+  <div class="dim">Colonies must be self-sufficient: there is no supply line across 4.2 light-years.</div></div>`+toasts(['New location reached: Proxima b','Mission success: Seed Ship to Proxima b']);}
+})();
 </script></body></html>

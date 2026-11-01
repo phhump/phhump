@@ -15,7 +15,7 @@ namespace StellarIndustries.Unity.UI.Panels
         {
             GUILayout.BeginArea(r);
             Heading("Spacecraft", "Rockets are assembled from components in a Rocket Assembly Building, then launched from the Missions screen.");
-            GUILayout.Label(new GUIContent(Gx.Colored("Rocket equation: ", Theme.Orange) + "Δv = Isp · g0 · ln(m_full / m_empty). Each stage is computed separately; spent stages are dropped. " +
+            GUILayout.Label(new GUIContent(Gx.Colored("Rocket equation: ", Theme.Orange) + "delta-v = Isp · g0 · ln(m_full / m_empty). Each stage is computed separately; spent stages are dropped. " +
                 "Payload counts as dead mass for every stage, so heavier cargo means less delta-v.",
                 "Konstantin Tsiolkovsky, 1903. g0 = 9.81 m/s². Isp (specific impulse) is the engine's efficiency: kerosene/LOX ~300 s, hydrogen/LOX ~450 s."), Theme.DimLabel);
             Scroll = GUILayout.BeginScrollView(Scroll);
@@ -23,7 +23,7 @@ namespace StellarIndustries.Unity.UI.Panels
             {
                 var recipe = Sim.Db.Recipes.FirstOrDefault(x => x.Outputs.Any(o => o.ResourceId == rocket.VehicleResourceId));
                 bool unlocked = recipe == null || Sim.Construction.IsUnlocked(recipe);
-                GUILayout.BeginVertical(Theme.Box);
+                GUILayout.BeginVertical(Theme.Card);
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(Gx.Colored(rocket.Name, unlocked ? Theme.Cyan : Theme.Dim) + "  " + Gx.Colored(rocket.Category.ToString(), Theme.Dim), Theme.Label);
                 GUILayout.FlexibleSpace();
@@ -36,7 +36,7 @@ namespace StellarIndustries.Unity.UI.Panels
                 GUILayout.Label("Propellant per launch: " + Fmt.Amounts(Sim.Db, Core.Systems.SpacePhysics.Propellant(rocket)) + Gx.Colored("  (1 unit = 10 t)", Theme.Dim), Theme.Small);
                 if (Core.Systems.SpacePhysics.HasPhysics(rocket))
                 {
-                    GUILayout.Label($"Lift-off mass {NumberFormat.Short(Core.Systems.SpacePhysics.TotalMassT(rocket))} t  ·  Δv empty {Core.Systems.SpacePhysics.DeltaV(rocket, 0):0.0} km/s", Theme.Small);
+                    GUILayout.Label($"Lift-off mass {NumberFormat.Short(Core.Systems.SpacePhysics.TotalMassT(rocket))} t  ·  delta-v empty {Core.Systems.SpacePhysics.DeltaV(rocket, 0):0.0} km/s", Theme.Small);
                     foreach (var st in rocket.Stages)
                         GUILayout.Label($"   {st.Name}: {st.DryMassT:0.#} t dry + {st.PropellantMassT:0.#} t {st.Propellant}, Isp {st.IspSeconds:0} s", Theme.DimLabel);
                     var targets = Sim.Db.Missions.Where(m => m.DeltaVKms > 0 && Sim.Missions.RocketSuitable(m, rocket)).GroupBy(m => m.DeltaVKms).Select(g => g.First());
