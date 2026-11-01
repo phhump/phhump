@@ -1,0 +1,14 @@
+{
+    "name": "StellarIndustries.Editor",
+    "rootNamespace": "StellarIndustries.EditorTools",
+    "references": ["StellarIndustries.Core", "StellarIndustries.Unity"],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

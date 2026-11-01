@@ -1,0 +1,4 @@
+<!-- Save data is mapped via reflection (JsonMapper). Preserve the core assembly from IL2CPP code stripping. -->
+<linker>
+  <assembly fullname="StellarIndustries.Core" preserve="all" />
+</linker>

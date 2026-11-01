@@ -1,0 +1,17 @@
+# Unity
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+*.csproj
+*.sln
+!Tools/**/*.csproj
+.vs/
+.idea/
+# Tool build output
+Tools/**/bin/
+Tools/**/obj/

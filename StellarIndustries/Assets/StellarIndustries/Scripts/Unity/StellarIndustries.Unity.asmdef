@@ -1,0 +1,14 @@
+{
+    "name": "StellarIndustries.Unity",
+    "rootNamespace": "StellarIndustries.Unity",
+    "references": ["StellarIndustries.Core"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
