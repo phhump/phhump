@@ -108,6 +108,8 @@ namespace StellarIndustries.Unity.UI.Panels
                             (t.MaterialCost.Count > 0 ? "  +  " + Fmt.Cost(Sim, Sim.Db.Start.StartLocation, t.MaterialCost) + " (paid on Earth at start)" : ""), Theme.Small);
             if (t.Prerequisites.Count > 0)
                 GUILayout.Label("Requires: " + string.Join(", ", t.Prerequisites.Select(p => Gx.Colored(Sim.Db.Tech(p)?.Name ?? p, Sim.Research.Status(p) == TechStatus.Completed ? Theme.Good : Theme.Bad))), Theme.Small);
+            if (status != TechStatus.Completed && t.MaterialCost.Count > 0 && !Sim.Inventory.Has(Sim.Db.Start.StartLocation, t.MaterialCost))
+                GUILayout.Label(Gx.Colored("Materials must be on Earth before the project can start. " + Sim.Inventory.MissingText(Sim.Db.Start.StartLocation, t.MaterialCost), Theme.Warn), Theme.Small);
             GUILayout.BeginHorizontal();
             if (status == TechStatus.Available)
             {

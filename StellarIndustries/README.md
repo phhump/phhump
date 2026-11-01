@@ -9,6 +9,16 @@ build a lunar industry from local resources and — with enough research — hea
 > compiles against UnityEngine 2021.3 LTS reference assemblies, but it has **not yet been run
 > inside the Unity Editor** in this environment — please report anything that looks off.
 
+## Preview
+
+Preview renders from real simulation data (bot playthrough) — **not Unity screenshots** (see `Tools/PreviewRender`):
+
+| Earth industries (2 h 20 min) | Moon base (4 h) |
+|---|---|
+| ![Earth](Docs/preview/industries.png) | ![Moon](Docs/preview/moon.png) |
+| **Technology tree** | **Nearby stars (late-game scenario)** |
+| ![Research](Docs/preview/research.png) | ![Stars](Docs/preview/galaxy.png) |
+
 ## Quick start
 
 **Option A — open this folder as a project**

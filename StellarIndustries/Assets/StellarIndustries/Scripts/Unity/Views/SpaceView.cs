@@ -180,10 +180,11 @@ namespace StellarIndustries.Unity.Views
 
         static Vector3 StableNormal(int uid)
         {
-            // Golden-ratio spiral by uid: stable positions that never shuffle when buildings are added.
-            float f = (uid * 0.6180339f) % 1f;
-            float y = Mathf.Lerp(-0.8f, 0.8f, f);
-            float theta = uid * 2.399963f;
+            // R2 low-discrepancy sequence (plastic number) by uid: evenly spread, stable positions that never
+            // shuffle when buildings are added. (A golden-ratio spiral in both axes put buildings on a few curves.)
+            double u = (0.5 + 0.7548776662466927 * uid) % 1.0, v = (0.5 + 0.5698402909980532 * uid) % 1.0;
+            float y = Mathf.Lerp(-0.8f, 0.8f, (float)u);
+            float theta = (float)(v * Mathf.PI * 2);
             float r = Mathf.Sqrt(1 - y * y);
             return new Vector3(Mathf.Cos(theta) * r, y, Mathf.Sin(theta) * r);
         }

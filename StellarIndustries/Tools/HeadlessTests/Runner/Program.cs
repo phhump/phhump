@@ -9,6 +9,8 @@ public static class Program
     public static int Main(string[] args)
     {
         if (args.Contains("--bot-trace")) return BotTrace();
+        int ei = Array.IndexOf(args, "--export-preview");
+        if (ei >= 0 && ei + 1 < args.Length) return PreviewExport.Run(args[ei + 1]);
         Console.WriteLine("Stellar Industries - headless simulation tests");
         var results = SimulationTestSuite.RunAll(Console.WriteLine);
         int failed = results.Count(r => !r.Passed);

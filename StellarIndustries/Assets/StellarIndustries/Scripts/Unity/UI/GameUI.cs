@@ -152,7 +152,13 @@ namespace StellarIndustries.Unity.UI
             var active = Sim.Db.Tech(Sim.State.Research.ActiveTech);
             GUI.Label(new Rect(x, 8, 220, 18), "RESEARCH", Theme.DimLabel);
             if (active != null) Gx.Bar(new Rect(x, 27, 190, 15), (float)Sim.Research.Fraction, new Color(0.17f, 0.85f, 1f, 0.75f), active.Name);
-            else GUI.Label(new Rect(x, 24, 200, 20), Gx.Colored("idle", Theme.Warn), Theme.Label);
+            else
+            {
+                // Explain *why* research is idle: usually a material cost that is not available on Earth yet.
+                var waiting = Sim.State.Research.Queue.Select(q => Sim.Db.Tech(q)).FirstOrDefault(t => t != null);
+                string why = waiting != null ? Sim.Inventory.MissingText(Sim.Db.Start.StartLocation, waiting.MaterialCost) : "Open the Research tree";
+                GUI.Label(new Rect(x, 24, 200, 20), new GUIContent(Gx.Colored(waiting != null ? "waiting" : "idle", Theme.Warn), (waiting != null ? waiting.Name + " - " : "") + why), Theme.Label);
+            }
             x += 205;
             if (x + 120 < VW)
             {
